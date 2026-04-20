@@ -1,7 +1,6 @@
 # Identity & Signing
 
-**Key npm packages (prefer barrel imports):**
-- `@xyo-network/crypto` — Barrel: account, account-model, wallet, wallet-model, elliptic, key-model
+**Root barrel package:** `@xyo-network/sdk-js` — import everything from here. Tree shaking eliminates unused exports.
 
 For full type details, read the `.d.ts` files at `dist/neutral/index.d.ts` in each package.
 
@@ -21,7 +20,7 @@ An **Account** is a key pair (secp256k1 elliptic curve) used for signing and ide
 ### Creation
 
 ```ts
-import { Account } from '@xyo-network/crypto'
+import { Account } from '@xyo-network/sdk-js'
 
 // Random account (testing)
 const account = await Account.random()
@@ -56,7 +55,7 @@ A **Wallet** extends Account with hierarchical deterministic (HD) key derivation
 ### Creation
 
 ```ts
-import { HDWallet } from '@xyo-network/crypto'
+import { HDWallet } from '@xyo-network/sdk-js'
 
 // Random mnemonic wallet
 const wallet = await HDWallet.random()

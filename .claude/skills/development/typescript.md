@@ -61,20 +61,21 @@ Always use ES modules. No CommonJS.
 - Set `"type": "module"` in `package.json`
 - Use `.js` extensions in relative import paths (TypeScript resolves `.ts` → `.js`)
 
-## Imports: Barrel Packages and Tree Shaking
+## Imports: Root Barrel Packages and Tree Shaking
 
-**Prefer barrel (aggregate) package imports** over deep/granular sub-package imports. Barrel packages re-export their sub-packages, giving you a single import source and enabling bundler tree shaking.
+**Import from the root barrel package of each monorepo.** Each SDK monorepo publishes a single root package that re-exports everything. Tree shaking eliminates what you don't use.
 
 ```ts
-// Good — barrel package import
-import { Payload, PayloadBuilder } from '@xyo-network/payload'
+// Good — root barrel import, tree shaking handles the rest
+import { Payload, PayloadBuilder, Account, BoundWitnessBuilder } from '@xyo-network/sdk-js'
 
-// Avoid — granular sub-package imports
+// Avoid — importing from sub-packages
 import { Payload } from '@xyo-network/payload-model'
 import { PayloadBuilder } from '@xyo-network/payload-builder'
+import { Account } from '@xyo-network/account'
 ```
 
-The barrel package approach is cleaner, more maintainable, and lets the bundler eliminate unused exports. See the XYO and XL1 knowledge skills for the specific barrel packages available in each ecosystem.
+This is simpler, more maintainable, and the bundler eliminates unused exports. See the XYO and XL1 knowledge skills for the specific root barrel packages.
 
 **Import ordering:**
 - External packages first, then internal modules, separated by a blank line

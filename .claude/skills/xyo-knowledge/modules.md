@@ -1,14 +1,6 @@
 # Module System
 
-**Key npm packages (prefer barrel imports):**
-- `@xyo-network/modules` — Top-level barrel: re-exports all module packages below
-- `@xyo-network/archivist` — Barrel: archivist-abstract, archivist-model, archivist-memory, archivist-wrapper, etc.
-- `@xyo-network/diviner` — Barrel: diviner-abstract, diviner-model, diviner-wrapper, 30+ variants
-- `@xyo-network/witness` — Barrel: witness-abstract, witness-model, witness-wrapper, adhoc, timestamp, etc.
-- `@xyo-network/sentinel` — Barrel: sentinel-abstract, sentinel-model, sentinel-wrapper
-- `@xyo-network/node` — Barrel: node-abstract, node-model, node-memory, node-wrapper
-- `@xyo-network/bridge` — Barrel: bridge-abstract, bridge-model, bridge-http, bridge-websocket, etc.
-- `@xyo-network/module` — Barrel: module-abstract, module-model, module-wrapper, module-resolver
+**Root barrel package:** `@xyo-network/sdk-js` — import everything from here. Tree shaking eliminates unused exports.
 
 For full type details, read the `.d.ts` files at `dist/neutral/index.d.ts` in each package.
 
@@ -46,7 +38,7 @@ interface ArchivistFunctions {
 **Implementations:** MemoryArchivist, IndexedDB, LevelDB, LMDB, MongoDB, Cookie, Firebase
 
 ```ts
-import { MemoryArchivist, MemoryArchivistConfigSchema } from '@xyo-network/archivist'
+import { MemoryArchivist, MemoryArchivistConfigSchema } from '@xyo-network/sdk-js'
 
 const archivist = await MemoryArchivist.create({
   account: 'random',
@@ -128,8 +120,7 @@ Use bridges when modules need to communicate across processes or machines.
 The standard pattern for wiring modules together:
 
 ```ts
-import { MemoryNode } from '@xyo-network/node'
-import { MemoryArchivist, MemoryArchivistConfigSchema } from '@xyo-network/archivist'
+import { MemoryNode, MemoryArchivist, MemoryArchivistConfigSchema } from '@xyo-network/sdk-js'
 
 // 1. Create a node
 const node = await MemoryNode.create({ account: 'random' })

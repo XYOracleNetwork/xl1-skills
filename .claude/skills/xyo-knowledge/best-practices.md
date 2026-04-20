@@ -1,45 +1,25 @@
 # Protocol Best Practices
 
-## Barrel Package Imports
+## Root Barrel Import
 
-Use barrel (aggregate) packages rather than importing from granular sub-packages. This follows the general principle from [Layer 1](../development/typescript.md) and enables tree shaking.
-
-### XYO Barrel Package Hierarchy
-
-```
-@xyo-network/sdk-js              ← Top-level: re-exports everything
-├── @xyo-network/protocol        ← All protocol types and builders
-│   ├── @xyo-network/payload         (payload-model, payload-builder, payload-validator, payload-wrapper, huri)
-│   ├── @xyo-network/boundwitness    (boundwitness-model, boundwitness-builder, boundwitness-validator, boundwitness-wrapper)
-│   ├── @xyo-network/crypto          (account, account-model, wallet, wallet-model, elliptic, key-model)
-│   └── @xyo-network/core            (hash, data, object, wasm)
-├── @xyo-network/modules         ← All module implementations
-│   ├── @xyo-network/archivist
-│   ├── @xyo-network/diviner
-│   ├── @xyo-network/witness
-│   ├── @xyo-network/sentinel
-│   ├── @xyo-network/node
-│   ├── @xyo-network/bridge
-│   └── @xyo-network/module
-├── @xyo-network/manifest
-├── @xyo-network/core-payload-plugins
-└── @xyo-network/sdk-utils
-```
-
-**Import from the highest barrel that contains what you need:**
+**Always import from `@xyo-network/sdk-js`** — the root barrel package for the XYO SDK. It re-exports everything from all ~200 sub-packages. Tree shaking eliminates what you don't use.
 
 ```ts
-// Good — barrel imports
-import { Payload, PayloadBuilder, asSchema } from '@xyo-network/payload'
-import { BoundWitnessBuilder } from '@xyo-network/boundwitness'
-import { Account } from '@xyo-network/crypto'
-import { MemoryArchivist } from '@xyo-network/archivist'
+// Good — single root barrel import
+import {
+  Payload, PayloadBuilder, asSchema,
+  BoundWitnessBuilder,
+  Account, HDWallet,
+  MemoryArchivist, MemoryNode,
+} from '@xyo-network/sdk-js'
 
-// Avoid — granular sub-packages
+// Avoid — sub-package imports
 import { Payload } from '@xyo-network/payload-model'
-import { PayloadBuilder } from '@xyo-network/payload-builder'
 import { Account } from '@xyo-network/account'
+import { MemoryArchivist } from '@xyo-network/archivist-memory'
 ```
+
+This applies to all XYO protocol development. See also the [XL1 root barrel](../xl1-knowledge/development.md) for XL1-specific imports.
 
 ---
 

@@ -1,38 +1,31 @@
 # Development on XL1
 
-**Key npm packages:**
-- `@xyo-network/xl1-sdk` — **Barrel package**: re-exports all XL1 packages below
-- `@xyo-network/xl1-protocol-sdk` — Config, caching, signing, transaction building, Simple* implementations
-- `@xyo-network/xl1-rpc` — JSON-RPC layer (type definitions, engine, schema maps)
-- `@xyo-network/xl1-providers` — Browser/Node/Neutral provider implementations
+**Root barrel packages:**
 
-For full type details, read the `.d.ts` files at `dist/neutral/index.d.ts` in each package.
+| Repo | Root Barrel | Purpose |
+|------|------------|---------|
+| sdk-xyo-client-js | `@xyo-network/sdk-js` | XYO protocol (payloads, BW, modules, accounts) |
+| xl1-protocol | `@xyo-network/xl1-sdk` | XL1 protocol (blocks, transactions, viewers, RPC) |
+| xyo-chain | `@xyo-network/chain-sdk` | XL1 runtime (services, drivers, chain operations) |
 
-### XL1 Barrel Package Hierarchy
-
-```
-@xyo-network/xl1-sdk              ← Top-level: re-exports everything
-├── @xyo-network/xl1-protocol     ← All protocol types and interfaces
-│   ├── @xyo-network/xl1-protocol-model    (Zod schemas, branded types, data structures)
-│   ├── @xyo-network/xl1-protocol-lib      (viewer/runner interface definitions)
-│   ├── @xyo-network/xl1-validation        (composable validators)
-│   ├── @xyo-network/xl1-schema            (JSON schema validation)
-│   └── @xyo-network/xl1-network-model     (network API definitions)
-├── @xyo-network/xl1-protocol-sdk ← SDK implementations
-├── @xyo-network/xl1-rpc          ← JSON-RPC layer
-├── @xyo-network/xl1-providers    ← Provider implementations
-└── @xyo-network/xl1-wrappers     ← Value wrappers
-```
-
-**Prefer barrel imports** (see [Layer 1 convention](../development/typescript.md) and [XYO barrel packages](../xyo-knowledge/best-practices.md)):
+**Always import from the root barrel.** Tree shaking eliminates unused exports.
 
 ```ts
-// Good — barrel import
-import { BlockBoundWitnessZod, TransactionBoundWitnessZod } from '@xyo-network/xl1-sdk'
+// XYO primitives
+import { Payload, PayloadBuilder, Account, BoundWitnessBuilder } from '@xyo-network/sdk-js'
 
-// Avoid — granular sub-package
+// XL1 protocol types and SDK
+import { BlockBoundWitnessZod, SimpleBlockViewer, BlockViewerMoniker } from '@xyo-network/xl1-sdk'
+
+// XL1 chain runtime (services, drivers)
+import { ... } from '@xyo-network/chain-sdk'
+
+// Avoid — sub-package imports
 import { BlockBoundWitnessZod } from '@xyo-network/xl1-protocol-model'
+import { Payload } from '@xyo-network/payload-model'
 ```
+
+For full type details, read the `.d.ts` files at `dist/neutral/index.d.ts` in each root barrel package.
 
 ---
 
