@@ -2,9 +2,8 @@
 
 **Key npm packages:**
 - `@xyo-network/xl1-protocol-lib` — DataLakeViewer and DataLakeRunner interfaces
-- `@xyo-network/chain-protocol` — Storage driver interfaces
-- `@xyo-network/chain-protocol-driver-lmdb` — LMDB storage driver
-- `@xyo-network/chain-protocol-driver-mongodb` — MongoDB storage driver
+
+Note: Storage drivers (LMDB, MongoDB) are part of the `xyo-chain` runtime repo and not published as standalone npm packages. The interface above is what dApp developers interact with.
 
 ---
 
@@ -79,12 +78,12 @@ interface RouterDataLakeConfig {
 ### LMDB (Local)
 - Fast, embedded key-value store
 - Best for single-node deployments and development
-- Package: `@xyo-network/chain-protocol-driver-lmdb`
+- Part of the `xyo-chain` runtime repo (not a standalone npm package)
 - Config: `XL1_STORAGE__ROOT` env var sets the data directory
 
 ### MongoDB (Distributed)
 - Distributed document store for multi-node deployments
-- Package: `@xyo-network/chain-protocol-driver-mongodb`
+- Part of the `xyo-chain` runtime repo (not a standalone npm package)
 - Config: `XL1_STORAGE__MONGO__*` env vars for connection settings
 
 ---

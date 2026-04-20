@@ -3,7 +3,8 @@
 **Key npm packages:**
 - `@xyo-network/xl1-rpc` — RPC type definitions, Zod schemas, engine handlers
 - `@xyo-network/xl1-providers` — Browser, Node, and Neutral provider implementations
-- `@xyo-network/chain-api` — API server (Express-based gateway)
+
+Note: The gateway API server itself is part of the `xyo-chain` runtime repo (not published as a standalone npm package). The packages above cover the client-side RPC and provider interfaces needed for dApp development.
 
 ---
 
