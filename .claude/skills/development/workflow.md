@@ -81,7 +81,7 @@ A feature is not complete until **all of the following are true**:
 - Dependencies are installed via the repo's package manager — don't forget to actually run `pnpm install` (or equivalent)
 - No phantom dependencies — if your code imports it, it must be in `package.json` (don't rely on transitive installs)
 - Version ranges follow the repo's existing conventions (pinned, caret, tilde)
-- All peer dependency warnings from `pnpm install` are resolved — install the required peers at the versions the package expects, not just the latest
+- All peer dependency warnings are resolved — install the required peers at the versions the package expects, not just the latest. Note: `pnpm install` suppresses warnings when the lockfile is already up to date. After adding or changing dependencies, run `pnpm install --resolution-only` to force a fresh resolution check that surfaces all peer dependency warnings.
 
 ### 5. Dev Server Starts (apps only)
 - If the project is an application with a dev server (`pnpm dev` or equivalent), start it and confirm it launches without errors
