@@ -43,22 +43,30 @@ Each commit is exactly **one logical change**.
 
 If you find yourself writing "and" in a commit message, consider splitting it into two commits.
 
-## Branch Naming
+## Gitflow Branching Model
 
-Branches follow the pattern:
+We follow [Gitflow](https://nvie.com/posts/a-successful-branching-model/) where possible.
 
-```
-type/short-description
-```
+### Long-lived Branches
+- **`main`** — production-ready code. Every commit on main is a release.
+- **`develop`** — integration branch for the next release. Feature branches merge here.
 
-Use the same type prefixes as conventional commits:
+### Short-lived Branches
+- **`feature/<description>`** — new functionality, branched from `develop`, merged back to `develop`
+- **`fix/<description>`** — bug fixes during development, branched from `develop`
+- **`release/<version>`** — release prep (version bumps, final fixes), branched from `develop`, merged to both `main` and `develop`
+- **`hotfix/<description>`** — urgent production fixes, branched from `main`, merged to both `main` and `develop`
 
-```
-feature/rps-game-ui
-fix/wallet-connection-timeout
-chore/update-deps
-refactor/extract-game-logic
-```
-
-- Use kebab-case for the description
+### Branch Naming
+- Use kebab-case for the description: `feature/rps-game-ui`, `hotfix/wallet-connection-timeout`
 - Keep it short but descriptive enough to understand the purpose at a glance
+
+### Workflow
+1. New work starts as a `feature/` branch off `develop`
+2. When complete, merge feature into `develop`
+3. When `develop` is release-ready, create a `release/` branch for final stabilization
+4. Merge the release branch into `main` (tag it) and back into `develop`
+5. If a critical bug is found in production, create a `hotfix/` branch from `main`
+
+### Pragmatism
+Not every repo needs the full ceremony. For smaller projects or early-stage work, a simplified flow (feature branches off `main`, no `develop`) is acceptable. Use the full model when the project has releases, environments, or multiple contributors that benefit from the structure.
