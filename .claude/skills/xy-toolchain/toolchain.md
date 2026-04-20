@@ -93,6 +93,19 @@ Many XY projects are monorepos using workspaces.
 - Check that source files match the glob patterns in the ESLint config
 - Run `package-lint-verbose` for detailed output
 
+### Vite dev server fails with "Top-level await is not available"
+- XYO SDK dependencies (specifically `@bitauth/libauth`) use top-level `await`, which requires an `esnext` build target
+- Vite's production build (Rollup) handles this, but the dev server (esbuild) does not with default browser targets
+- Fix by setting both targets in `vite.config.ts`:
+  ```ts
+  export default defineConfig({
+    optimizeDeps: {
+      esbuildOptions: { target: 'esnext' },
+    },
+    build: { target: 'esnext' },
+  })
+  ```
+
 ### Package manager conflicts
 - If you see dependency resolution errors, make sure you're using the correct package manager for the project
 - Delete `node_modules` and the lock file only as a last resort — try `pnpm install` first

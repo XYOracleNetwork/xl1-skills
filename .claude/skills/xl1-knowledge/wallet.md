@@ -62,6 +62,12 @@ The transaction enters the mempool and is included in the next block by a block 
 
 The React SDK provides a component library for building XL1 dApp UIs.
 
+### When to use the browser wallet
+
+Any React dApp that records data on XL1 **must** use `GatewayProvider` and `useGatewayFromWallet()` for wallet connection and transaction signing. Do not use `Account.random()` for user-facing wallet connections — that is for tests and non-interactive scripts only.
+
+If the wallet extension is not installed, show a prompt directing the user to install it from the Chrome Web Store. Do not silently fall back to a random account — the user should know they need the wallet to interact with the chain.
+
 ### Gateway Provider
 
 The `GatewayProvider` establishes the connection between your React app and the XL1 chain:

@@ -72,7 +72,12 @@ A feature is not complete until **all of the following are true**:
 - No phantom dependencies — if your code imports it, it must be in `package.json` (don't rely on transitive installs)
 - Version ranges follow the repo's existing conventions (pinned, caret, tilde)
 
-### 5. No Regressions
+### 5. Dev Server Starts (apps only)
+- If the project is an application with a dev server (`pnpm dev` or equivalent), start it and confirm it launches without errors
+- The production build and dev server often use different tools (e.g., Vite uses Rollup for `build` but esbuild for `dev`) — passing one does not guarantee the other
+- This is a fast smoke test: start the server, confirm no crash, then stop it
+
+### 6. No Regressions
 - Existing functionality still works, not just the new code
 - If the change touches shared utilities or interfaces, verify downstream consumers
 - If unsure whether something regressed, run the full test suite — don't assume
