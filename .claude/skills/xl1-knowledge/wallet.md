@@ -93,15 +93,19 @@ From the dApp's perspective, the **gateway**, **wallet**, and **connected accoun
 
 ### Gateway Provider
 
-The `GatewayProvider` establishes the connection between your React app and the XL1 chain. It **requires** `InPageGatewaysProvider` as a parent — without it the app will silently crash to a blank page.
+The `GatewayProvider` establishes the connection between your React app and the XL1 chain. Two requirements:
+
+1. **`InPageGatewaysProvider` must be an ancestor** — without it the app will silently crash to a blank page.
+2. **`gatewayName` is required** — without it, `defaultGateway` is always `undefined`. Use `MainNetwork.id` from `@xyo-network/xl1-sdk` (value: `"mainnet"`). Internally, `GatewayProvider` uses this name to look up both the wallet gateway (via `useGatewayFromWallet(gatewayName)`) and the in-page fallback gateway (via `allGateways[gatewayName]`). When `gatewayName` is omitted, both lookups return `undefined`.
 
 ```tsx
 import { GatewayProvider, InPageGatewaysProvider } from '@xyo-network/react-chain-provider'
+import { MainNetwork } from '@xyo-network/xl1-sdk'
 
 function App() {
   return (
     <InPageGatewaysProvider>
-      <GatewayProvider>
+      <GatewayProvider gatewayName={MainNetwork.id}>
         <YourDApp />
       </GatewayProvider>
     </InPageGatewaysProvider>
@@ -167,6 +171,7 @@ A typical XL1 dApp structure:
 
 ```tsx
 import { GatewayProvider, InPageGatewaysProvider, ConnectAccountsStack } from '@xyo-network/react-chain-provider'
+import { MainNetwork } from '@xyo-network/xl1-sdk'
 import { useState } from 'react'
 
 function App() {
@@ -174,7 +179,7 @@ function App() {
 
   return (
     <InPageGatewaysProvider>
-      <GatewayProvider>
+      <GatewayProvider gatewayName={MainNetwork.id}>
         <ConnectAccountsStack onAccountConnected={setAddress} />
         <GameBoard address={address} />
         <GameHistory address={address} />
