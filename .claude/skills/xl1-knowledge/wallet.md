@@ -19,42 +19,56 @@ The XL1 wallet is a Chrome browser extension for interacting with the XYO Layer 
 
 ---
 
-## Transaction Signing Flow
+## Submitting Transactions
 
-When a dApp needs to submit a transaction to the XL1 chain:
+**The gateway is the single point of entry for all chain interactions in application code.** It abstracts transaction construction, wallet signing, and broadcasting into single method calls. Do not use low-level RPC constructs (`TransactionBoundWitness`, `xyoSigner_signTransaction`, `xyoRunner_broadcastTransaction`) directly — those are internal to the gateway implementation. Application code should always go through the gateway's high-level methods.
 
-### 1. Construct the Transaction
-The dApp builds a `TransactionBoundWitness` with the desired payloads (see [Chain](chain.md) for the data model):
+### Adding application data to the chain
 
-```ts
-// Transaction includes: chain, from, nbf, exp, fees, and payloads
-const tx: [TransactionBoundWitness, Payload[]] = [transactionBw, payloads]
-```
-
-### 2. Request Wallet Signature
-The dApp sends a signing request to the wallet via PostMessage RPC:
+For custom application payloads (game results, attestations, etc.), use `addPayloadsToChain`:
 
 ```ts
-// The wallet handles xyoSigner_signTransaction
-const signedTx = await provider.signTransaction(tx)
+const { gateway } = useConnectAccount()
+
+// Application payloads go in offChain — onChain is for AllowedBlockPayload system types
+const [txHash, signedTx] = await gateway.addPayloadsToChain([], payloads)
 ```
 
-### 3. Wallet Signs
-The wallet extension:
-- Displays the transaction details to the user for approval
-- Signs with the user's account key
-- Returns a `SignedHydratedTransactionWithHashMeta`
+This single call:
+1. Builds a `TransactionBoundWitness` with fees, block range, and chain ID
+2. Triggers the wallet extension popup for user approval
+3. Signs with the user's account key
+4. Broadcasts to the XL1 network
+5. Returns `[Hash, SignedHydratedTransactionWithHashMeta]`
 
-### 4. Broadcast
-The signed transaction is broadcast to the network:
+**On-chain vs off-chain payloads:**
+- `onChain: AllowedBlockPayload[]` — predefined XL1 system payload types only (e.g., `StepComplete`). Custom application payloads will not typecheck here.
+- `offChain: Payload[]` — application data of any schema. These are attached to the transaction and recorded on chain, but are not system-level block payloads.
+
+### Token transfers
+
+For sending XL1 tokens:
 
 ```ts
-// Via xyoRunner_broadcastTransaction
-const txHash = await provider.broadcastTransaction(signedTx)
+const txHash = await gateway.send(toAddress, amount)
+const txHash = await gateway.sendMany({ [addr1]: amount1, [addr2]: amount2 })
 ```
 
-### 5. Inclusion
-The transaction enters the mempool and is included in the next block by a block producer.
+### Pre-built transactions
+
+For full control over transaction construction, build the transaction first and then submit:
+
+```ts
+const [txHash, signedTx] = await gateway.addTransactionToChain(unsignedTx, offChainPayloads)
+```
+
+### Transaction confirmation
+
+After submission, confirm inclusion in a block:
+
+```ts
+const confirmedTx = await gateway.confirmSubmittedTransaction(txHash)
+```
 
 ---
 
@@ -62,32 +76,43 @@ The transaction enters the mempool and is included in the next block by a block 
 
 The React SDK provides a component library for building XL1 dApp UIs.
 
+### When to use the browser wallet
+
+Any React dApp that records data on XL1 **must** use `GatewayProvider` and `useConnectAccount()` for wallet connection and chain interactions. The gateway returned by `useConnectAccount()` is the only interface application code should use for submitting transactions — do not construct transactions manually or call RPC methods directly.
+
+Do not use `Account.random()` for user-facing wallet connections — that is for tests and non-interactive scripts only. If the wallet extension is not installed, show a prompt directing the user to install it from the Chrome Web Store. Do not silently fall back to a random account.
+
 ### Gateway Provider
 
-The `GatewayProvider` establishes the connection between your React app and the XL1 chain:
+The `GatewayProvider` establishes the connection between your React app and the XL1 chain. It **requires** `InPageGatewaysProvider` as a parent — without it the app will silently crash to a blank page.
 
 ```tsx
-import { GatewayProvider } from '@xyo-network/react-chain-provider'
+import { GatewayProvider, InPageGatewaysProvider } from '@xyo-network/react-chain-provider'
 
 function App() {
   return (
-    <GatewayProvider>
-      <YourDApp />
-    </GatewayProvider>
+    <InPageGatewaysProvider>
+      <GatewayProvider>
+        <YourDApp />
+      </GatewayProvider>
+    </InPageGatewaysProvider>
   )
 }
 ```
 
 ### Connecting to the Wallet
 
-Use `useGatewayFromWallet()` to connect your dApp to the user's browser wallet:
+Use `useConnectAccount()` to connect your dApp to the user's browser wallet and obtain their address:
 
 ```tsx
-import { useGatewayFromWallet } from '@xyo-network/react-chain-provider'
+import { useConnectAccount } from '@xyo-network/react-chain-provider'
 
 function ConnectWallet() {
-  const { gateway, connect } = useGatewayFromWallet()
-  // gateway provides access to all viewer/runner methods
+  const { address, connectSigner, gateway, timedout } = useConnectAccount()
+  // address: connected wallet address (undefined until connected)
+  // connectSigner: call to trigger wallet popup
+  // gateway: XyoGatewayRunner for chain operations (undefined/null/instance)
+  // timedout: true if wallet extension was not detected
 }
 ```
 
@@ -109,15 +134,17 @@ function ConnectWallet() {
 A typical XL1 dApp structure with React:
 
 ```tsx
-import { GatewayProvider } from '@xyo-network/react-chain-provider'
+import { GatewayProvider, InPageGatewaysProvider } from '@xyo-network/react-chain-provider'
 
 function App() {
   return (
-    <GatewayProvider>
-      <GameBoard />      {/* Your game UI */}
-      <WalletConnect />  {/* Wallet connection */}
-      <GameHistory />    {/* Query past games from chain */}
-    </GatewayProvider>
+    <InPageGatewaysProvider>
+      <GatewayProvider>
+        <GameBoard />      {/* Your game UI */}
+        <WalletConnect />  {/* Wallet connection */}
+        <GameHistory />    {/* Query past games from chain */}
+      </GatewayProvider>
+    </InPageGatewaysProvider>
   )
 }
 ```
