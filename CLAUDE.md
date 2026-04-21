@@ -32,4 +32,4 @@ When building application features on XL1, start with Layer 5's SKILL.md — it 
 
 The prompt used to test these skills (from README):
 
-> Build me a rock paper scissors game where I can compete against other players. Each game's moves and outcomes should be recorded on the XL1 Blockchain. Include a UI for playing games and viewing past results.
+> Build me a two-player rock paper scissors game on XL1. Use commit-reveal so neither player can see the other's move before both have committed. Record moves and outcomes on-chain. Include a UI where anyone can browse past games and results without connecting a wallet, and connected players can start and play games.
