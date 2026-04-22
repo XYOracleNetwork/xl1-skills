@@ -114,15 +114,18 @@ The gateway's `ViewerWithDataLake` transparently resolves off-chain payloads —
 
 ### Via Datalake — Schema-Filtered Queries
 
-When you need to find all payloads of a given type regardless of which transaction included them, query the datalake directly through the gateway's `/chain` endpoint:
+When you need to find all payloads of a given type regardless of which transaction included them, query the datalake HTTP endpoint directly. The datalake is a standalone HTTP archivist — not a property on the gateway JS object. See [Datalakes — HTTP Endpoints](../xl1-knowledge/datalakes.md) for the URLs.
 
 ```ts
-// The datalake supports schema-based filtering
-// Filter for only your application's schemas
-const moves = await datalake.next({
-  allowedSchemas: [MoveSchema],
-})
+// Query the datalake HTTP endpoint with schema filter
+const url = new URL('https://api.archivist.xyo.network/dataLake')
+url.searchParams.append('schema', 'network.xyo.rps.move')
+
+const response = await fetch(url.toString())
+const moves = await response.json() as Payload[]
 ```
+
+For multi-player dApps, combine this with a local payload store for immediate UI updates — see [In-Page Data Lakes — dApp State Management](in-page-datalakes.md).
 
 ### Via Payload Hash — Direct Lookup
 

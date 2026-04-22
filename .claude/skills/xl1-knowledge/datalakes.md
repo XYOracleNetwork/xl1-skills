@@ -13,6 +13,18 @@ Datalakes are the structured data storage layer for the XL1 chain. They provide 
 
 Datalakes build on XYO's **Archivist** module abstraction (see [XYO Knowledge — Modules](../xyo-knowledge/modules.md)). The chain's finalized data is served through a module identified as `Chain:Finalized`, accessible via the gateway's `/chain` endpoint.
 
+### Datalake HTTP Endpoints
+
+Each network exposes its datalake as a standalone HTTP archivist endpoint, separate from the gateway RPC:
+
+| Network | Datalake URL |
+|---------|-------------|
+| **Mainnet** | `https://api.archivist.xyo.network/dataLake` |
+| **Sequence** (beta) | `https://beta.api.archivist.xyo.network/dataLake` |
+| **Local** | `http://localhost:8080/dataLake` |
+
+**The datalake is not a property on the gateway JS object.** In dApp code, access it via HTTP (`fetch`) to the endpoint above — not through `defaultGateway.datalake` (which does not exist). The gateway RPC (`/rpc`) and the datalake (`/dataLake`) are separate services.
+
 ### Off-chain payload storage
 
 The **dApp is responsible for persisting off-chain payloads to the datalake.** The browser wallet's `addPayloadsToChain(onChain, offChain)` submits a transaction whose BoundWitness references off-chain payloads by hash, but does **not** automatically store those payloads in a datalake. If the dApp doesn't persist them separately, the payload data is lost — only the hashes remain on-chain.

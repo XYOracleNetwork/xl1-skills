@@ -221,25 +221,70 @@ This gives visitors immediate value (browsing data) while requiring authenticati
 
 ---
 
-## Writing Payloads: Datalake First, Then Transaction
+## dApp State Management: Local Store + Remote Datalake
 
-The browser wallet's `addPayloadsToChain` does **not** persist off-chain payloads to the datalake. If the dApp only submits the transaction, the payload data is lost — only the hash reference remains on-chain. The dApp must insert payloads into the datalake before submitting the transaction:
+Each browser session is isolated — payloads submitted by Player A are invisible to Player B unless both read from a shared data source. The browser wallet does **not** persist off-chain payloads anywhere, and the datalake is not a property on the gateway JS object. The dApp must manage its own state with two layers:
 
-```tsx
-async function submitWithDatalake(
-  gateway: XyoGatewayRunner,
-  payloads: Payload[],
-) {
-  // 1. Insert payloads into the datalake — makes them queryable immediately
-  await datalake.insert(payloads)
+### Architecture
 
-  // 2. Submit the transaction — BoundWitness references payloads by hash
-  const [txHash] = await gateway.addPayloadsToChain([], payloads)
-  return txHash
-}
+```
+┌─ Player A's browser ─────────────────┐    ┌─ Player B's browser ─────────────────┐
+│  Local Payload Store (React + localStorage) │  Local Payload Store (React + localStorage)
+│       │                               │    │       │                               │
+│       │  addPayloads() on submit      │    │       │  addPayloads() on submit      │
+│       ▼                               │    │       ▼                               │
+│  ┌─────────┐    POST on submit        │    │  ┌─────────┐    POST on submit        │
+│  │ UI      │───────────────────────┐  │    │  │ UI      │───────────────────────┐  │
+│  └─────────┘                       │  │    │  └─────────┘                       │  │
+│       ▲        poll every 5s       │  │    │       ▲        poll every 5s       │  │
+│       └────────────────────────┐   │  │    │       └────────────────────────┐   │  │
+└────────────────────────────────┼───┼──┘    └────────────────────────────────┼───┼──┘
+                                 │   │                                        │   │
+                                 ▼   ▼                                        ▼   ▼
+                          ┌──────────────────┐
+                          │  Remote Datalake  │
+                          │  (HTTP endpoint)  │
+                          └──────────────────┘
 ```
 
-This ensures read-only components (powered by the in-page gateway) can find the payloads via schema-filtered datalake queries. Without the datalake insert, the game history, leaderboards, and other read views would be empty.
+### The two layers
+
+1. **Local payload store** — React state backed by `localStorage`. Updated immediately when this browser submits a payload. Provides instant UI feedback without a network round-trip. Also syncs across tabs of the same browser via the `storage` event.
+
+2. **Remote datalake** — the shared HTTP archivist endpoint (see [Datalakes — HTTP Endpoints](../xl1-knowledge/datalakes.md)). The dApp pushes payloads here on every submit (best-effort), and polls it periodically to discover payloads from other players. Results are merged into the local store with deduplication by data hash.
+
+### Submit flow
+
+On every user action (create game, commit, reveal, settle):
+
+```ts
+// 1. Submit transaction to chain via wallet
+const [txHash] = await gateway.addPayloadsToChain([], payloads)
+
+// 2. Store locally for immediate UI update
+addPayloads(payloads)
+// addPayloads also pushes to the remote datalake (best-effort)
+```
+
+The local store update is synchronous (instant UI). The remote datalake push is fire-and-forget — if it fails, the payload is still in the local store and will be visible to this browser. Other players discover it on their next poll.
+
+### Poll flow
+
+On a 5-second interval, fetch payloads from the remote datalake filtered by the application's schemas. Merge with the local store, deduplicating by `PayloadBuilder.dataHash`:
+
+```ts
+const remote = await datalakeClient.query(appSchemas)
+mergeIntoLocalStore(remote) // deduplicate by hash
+```
+
+### Why both layers
+
+| Concern | Local store alone | Remote datalake alone | Both |
+|---------|------------------|-----------------------|------|
+| Instant UI after submit | Yes | No (network latency) | Yes |
+| Cross-player visibility | No | Yes | Yes |
+| Works offline | Yes | No | Graceful degradation |
+| Survives page refresh | Via localStorage | Via remote query | Yes |
 
 ---
 
