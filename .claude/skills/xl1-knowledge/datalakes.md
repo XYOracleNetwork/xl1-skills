@@ -23,7 +23,19 @@ Each network exposes its datalake as a standalone HTTP archivist endpoint, separ
 | **Sequence** (beta) | `https://beta.api.archivist.xyo.network/dataLake` |
 | **Local** | `http://localhost:8080/dataLake` |
 
-**The datalake is not a property on the gateway JS object.** In dApp code, access it via HTTP (`fetch`) to the endpoint above — not through `defaultGateway.datalake` (which does not exist). The gateway RPC (`/rpc`) and the datalake (`/dataLake`) are separate services.
+**The datalake is not a property on the gateway JS object.** Use `RestDataLakeRunner` (writes) and `RestDataLakeViewer` (reads) from `@xyo-network/xl1-sdk` — not `defaultGateway.datalake` (which does not exist). The gateway RPC (`/rpc`) and the datalake (`/dataLake`) are separate services.
+
+```ts
+import { RestDataLakeRunner, RestDataLakeViewer } from '@xyo-network/xl1-sdk'
+
+// Write: insert payloads into the datalake
+const runner = new RestDataLakeRunner({ endpoint: 'https://api.archivist.xyo.network/dataLake' })
+await runner.insert(payloads)
+
+// Read: query payloads by schema
+const viewer = new RestDataLakeViewer({ endpoint: 'https://api.archivist.xyo.network/dataLake', allowedSchemas })
+const results = await viewer.next()
+```
 
 ### Off-chain payload storage
 

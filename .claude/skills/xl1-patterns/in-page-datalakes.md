@@ -251,29 +251,29 @@ Each browser session is isolated — payloads submitted by Player A are invisibl
 
 1. **Local payload store** — React state backed by `localStorage`. Updated immediately when this browser submits a payload. Provides instant UI feedback without a network round-trip. Also syncs across tabs of the same browser via the `storage` event.
 
-2. **Remote datalake** — the shared HTTP archivist endpoint (see [Datalakes — HTTP Endpoints](../xl1-knowledge/datalakes.md)). The dApp pushes payloads here on every submit (best-effort), and polls it periodically to discover payloads from other players. Results are merged into the local store with deduplication by data hash.
+2. **Remote datalake** — the shared archivist endpoint (see [Datalakes — HTTP Endpoints](../xl1-knowledge/datalakes.md)). Use `RestDataLakeRunner` (for writes) and `RestDataLakeViewer` (for reads) from `@xyo-network/xl1-sdk`. The dApp pushes payloads here on every submit and polls periodically to discover payloads from other players. Results are merged into the local store with deduplication by data hash.
 
 ### Submit flow
 
-On every user action (create game, commit, reveal, settle):
+On every user action (create game, commit, reveal, settle), **insert into the datalake first, then submit the transaction**. This ordering ensures the payload data is persisted even if the transaction succeeds but the datalake insert would have failed after:
 
 ```ts
-// 1. Submit transaction to chain via wallet
-const [txHash] = await gateway.addPayloadsToChain([], payloads)
+// 1. Insert into remote datalake — makes payload visible to other players
+await datalakeRunner.insert(payloads)
 
 // 2. Store locally for immediate UI update
 addPayloads(payloads)
-// addPayloads also pushes to the remote datalake (best-effort)
-```
 
-The local store update is synchronous (instant UI). The remote datalake push is fire-and-forget — if it fails, the payload is still in the local store and will be visible to this browser. Other players discover it on their next poll.
+// 3. Submit transaction to chain via wallet
+const [txHash] = await gateway.addPayloadsToChain([], payloads)
+```
 
 ### Poll flow
 
-On a 5-second interval, fetch payloads from the remote datalake filtered by the application's schemas. Merge with the local store, deduplicating by `PayloadBuilder.dataHash`:
+On a 5-second interval, fetch payloads from the remote datalake filtered by the application's schemas using `RestDataLakeViewer`. Merge with the local store, deduplicating by `PayloadBuilder.dataHash`:
 
 ```ts
-const remote = await datalakeClient.query(appSchemas)
+const remote = await datalakeViewer.next({ allowedSchemas: appSchemas })
 mergeIntoLocalStore(remote) // deduplicate by hash
 ```
 
