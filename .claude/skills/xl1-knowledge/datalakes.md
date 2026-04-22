@@ -23,33 +23,50 @@ Each network exposes its datalake as a standalone HTTP archivist endpoint, separ
 | **Sequence** (beta) | `https://beta.api.archivist.xyo.network/dataLake` |
 | **Local** | `http://localhost:8080/dataLake` |
 
-**The datalake is not a property on the gateway JS object.** Use `RestDataLakeRunner` (writes) and `RestDataLakeViewer` (reads) from `@xyo-network/xl1-sdk` — not `defaultGateway.datalake` (which does not exist). The gateway RPC (`/rpc`) and the datalake (`/dataLake`) are separate services.
+**The datalake is not a property on the gateway JS object.** The gateway RPC (`/rpc`) and the datalake (`/dataLake`) are separate services. Do not use `defaultGateway.datalake` (which does not exist).
+
+### Two Independent Datalake Clients
+
+There are two actors that can read from and write to datalakes, each with its own configuration:
+
+1. **The browser wallet** — the wallet extension has its own datalake configuration. When a transaction is submitted through the wallet, it can persist payloads to whichever datalake(s) it is configured for. The dApp does not control this.
+
+2. **The dApp/page** — the application code sets up its own datalake connection(s) via `RestDataLakeRunner` (writes) and `RestDataLakeViewer` (reads) from `@xyo-network/xl1-sdk`, pointing at whatever endpoint(s) it chooses. This is plain HTTP, completely independent of the wallet.
+
+These two configurations are **independent**. The relationship between them is a deployment choice:
+
+| Scenario | Wallet datalake | dApp datalake | Effect |
+|----------|----------------|---------------|--------|
+| **Same** | `endpoint A` | `endpoint A` | Both write to the same store — payloads are visible regardless of which actor wrote them |
+| **Different** | `endpoint A` | `endpoint B` | Each writes to its own store — a viewer on one won't see writes from the other |
+| **One-sided** | configured | none (or vice versa) | Only one actor persists payload data |
+
+**Do not assume one covers the other.** The wallet may or may not write to a datalake the dApp can see, and vice versa. If the dApp needs payload data to be available for querying, it must write to its own datalake — regardless of what the wallet does.
 
 ```ts
 import { RestDataLakeRunner, RestDataLakeViewer } from '@xyo-network/xl1-sdk'
 
-// Write: insert payloads into the datalake
+// dApp-configured datalake — independent of the wallet's datalake config
 const runner = new RestDataLakeRunner({ endpoint: 'https://api.archivist.xyo.network/dataLake' })
 await runner.insert(payloads)
 
-// Read: query payloads by schema
 const viewer = new RestDataLakeViewer({ endpoint: 'https://api.archivist.xyo.network/dataLake', allowedSchemas })
 const results = await viewer.next()
 ```
 
 ### Off-chain payload storage
 
-The **dApp is responsible for persisting off-chain payloads to the datalake.** The browser wallet's `addPayloadsToChain(onChain, offChain)` submits a transaction whose BoundWitness references off-chain payloads by hash, but does **not** automatically store those payloads in a datalake. If the dApp doesn't persist them separately, the payload data is lost — only the hashes remain on-chain.
+The **dApp is responsible for persisting off-chain payloads to its own datalake.** The browser wallet's `addPayloadsToChain(onChain, offChain)` submits a transaction whose BoundWitness references off-chain payloads by hash — but the wallet only writes those payloads to whatever datalake the *wallet* is configured for (if any). The dApp cannot rely on the wallet's datalake being the same endpoint it reads from, or being configured at all.
 
 The correct flow for application data:
 
 1. **Build** the application payloads (game state, attestations, etc.)
-2. **Insert** them into the datalake via its archivist `insert` interface
-3. **Submit** the transaction via `addPayloadsToChain` — the transaction's BoundWitness references the payloads by hash, linking on-chain proof to off-chain data
+2. **Insert** them into the dApp's datalake via `RestDataLakeRunner.insert()` — this is plain HTTP, no wallet needed. This ensures the dApp can read back its own data.
+3. **Submit** the transaction via `addPayloadsToChain` — this requires the browser wallet. The transaction's BoundWitness references the payloads by hash, linking on-chain proof to off-chain data.
 
-Custom payloads go in the `offChain` parameter because they are not `AllowedBlockPayload` system types. The datalake stores the actual payload data, and the chain stores the cryptographic reference.
+Custom payloads go in the `offChain` parameter because they are not `AllowedBlockPayload` system types. The chain stores the cryptographic reference (hash); the datalake stores the actual payload data.
 
-When querying transactions later, the gateway's `ViewerWithDataLake` can transparently resolve off-chain payloads from the datalake — but only if the dApp stored them there in the first place.
+When querying transactions later, the gateway's `ViewerWithDataLake` can transparently resolve off-chain payloads from the datalake — but only if someone (wallet or dApp) stored them in a datalake that the viewer is configured to read from.
 
 ---
 

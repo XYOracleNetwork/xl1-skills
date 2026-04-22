@@ -1,6 +1,6 @@
 # In-Page Data Lakes
 
-Read this pattern when your React dApp needs read-only access to chain data without requiring the user to connect their wallet first. This is the foundation for building explorer views, leaderboards, game history, and any UI that displays chain data to unauthenticated visitors.
+Read this pattern when your React dApp needs to access chain data or the datalake without requiring the user to connect their wallet first. This is the foundation for building explorer views, leaderboards, game history, and any UI that reads chain data or writes to the datalake without a wallet connection.
 
 **Builds on:**
 - [Browser Wallet](../xl1-knowledge/wallet.md) — `InPageGatewaysProvider`, `WalletGatewayProvider`, `GatewayProvider`, `useProvidedGateway()`
@@ -25,31 +25,30 @@ The standard XL1 React setup routes all chain access through the wallet gateway 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│  InPageGatewaysProvider                         │
-│  ┌────────────────────┐                         │
-│  │ In-Page Gateway    │◄── HTTP RPC to network  │
-│  │ (read-only)        │    No wallet needed      │
-│  └────────────────────┘                         │
-│           │                                      │
-│  ┌────────▼───────────────────────────┐         │
-│  │ GatewayProvider                    │         │
-│  │                                    │         │
-│  │  defaultGateway = wallet gateway   │         │
-│  │    ?? in-page gateway              │         │
-│  │                                    │         │
-│  │  ┌──────────────────────────────┐  │         │
-│  │  │ Your Components              │  │         │
-│  │  │                              │  │         │
-│  │  │ Read: always available       │  │         │
-│  │  │ Write: only after wallet     │  │         │
-│  │  │        connection            │  │         │
-│  │  └──────────────────────────────┘  │         │
-│  └────────────────────────────────────┘         │
-└─────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│  WalletGatewayProvider                                    │
+│  (combines in-page + wallet gateways automatically)       │
+│                                                           │
+│  defaultGateway = wallet gateway ?? in-page gateway       │
+│                                                           │
+│  ┌──────────────────────────────────────────────────┐     │
+│  │ Your Components                                  │     │
+│  │                                                  │     │
+│  │ Chain read:      in-page gateway (always)        │     │
+│  │ Chain write:     wallet gateway (wallet req)     │     │
+│  │                                                  │     │
+│  │ dApp datalake:   RestDataLakeRunner/Viewer       │     │
+│  │   read + write   (HTTP, always available)        │     │
+│  │                                                  │     │
+│  │ Wallet datalake: wallet's own config             │     │
+│  │   (independent — may differ from dApp's)         │     │
+│  └──────────────────────────────────────────────────┘     │
+└───────────────────────────────────────────────────────────┘
 ```
 
-`InPageGatewaysProvider` creates HTTP-based gateway instances for each configured network. `GatewayProvider` merges these with the wallet gateway, preferring the wallet when connected and falling back to the in-page gateway for read-only access.
+`WalletGatewayProvider` combines the in-page gateway and wallet gateway into a single provider. It prefers the wallet gateway when connected and falls back to the in-page gateway for read-only chain access.
+
+**Two independent datalake clients:** The wallet and the dApp each have their own datalake configuration. The wallet writes to whatever datalake(s) it is configured for; the dApp writes to its own via `RestDataLakeRunner`/`RestDataLakeViewer` (plain HTTP). These may point to the same endpoint, different endpoints, or either side may have no datalake at all. See [Datalakes — Two Independent Datalake Clients](../xl1-knowledge/datalakes.md) for the full breakdown. The dApp must not assume the wallet's datalake covers its persistence needs.
 
 ---
 
@@ -70,7 +69,7 @@ function App() {
         <GameHistory />
         <Leaderboard />
 
-        {/* Wallet connection only needed for writes */}
+        {/* Wallet connection only needed for chain transactions */}
         <ConnectAccountsStack onAccountConnected={setAddress} />
         {address && <GameBoard address={address} />}
       </WalletGatewayProvider>
@@ -96,7 +95,7 @@ function GameHistory() {
 
     // This works with just the in-page gateway — no wallet needed
     const loadHistory = async () => {
-      const payloads = await datalake.next({
+      const payloads = await datalakeViewer.next({
         allowedSchemas: [ResultSchema],
       })
       setGames(payloads.filter(isResultPayload))
@@ -117,21 +116,24 @@ function GameHistory() {
 
 ### Checking Gateway Capability
 
-When a component supports both reading and writing, check the gateway type before attempting writes:
+When a component supports both reading and writing, check the gateway type before attempting **chain** transactions. The dApp's datalake (`RestDataLakeRunner`/`RestDataLakeViewer`) is the dApp's own HTTP client and doesn't depend on the gateway or wallet at all:
 
 ```tsx
 function GameBoard({ address }: { address?: string }) {
   const { defaultGateway } = useProvidedGateway()
 
-  const canWrite = defaultGateway && 'addPayloadsToChain' in defaultGateway
+  const canSubmitToChain = defaultGateway && 'addPayloadsToChain' in defaultGateway
   const canRead = !!defaultGateway
+  // The dApp's datalake (RestDataLakeRunner/Viewer) is independent —
+  // it's the dApp's own HTTP client, not gated by the wallet or gateway
 
-  // Read operations work for all visitors
-  // Write operations require wallet connection
+  // Chain reads work for all visitors (in-page gateway)
+  // dApp datalake reads/writes work for all visitors (dApp's own HTTP client)
+  // Chain transactions require wallet connection
   return (
     <div>
       {canRead && <GameState gateway={defaultGateway} />}
-      {canWrite
+      {canSubmitToChain
         ? <MoveControls gateway={defaultGateway} address={address!} />
         : <p>Connect wallet to play</p>}
     </div>
@@ -155,7 +157,7 @@ function Leaderboard() {
 
     const loadLeaders = async () => {
       // Query result payloads from the datalake
-      const results = await datalake.next({
+      const results = await datalakeViewer.next({
         allowedSchemas: [ResultSchema],
       })
 
@@ -191,7 +193,10 @@ function Leaderboard() {
 
 ## Combining Read and Write Flows
 
-The typical pattern for in-page datalakes separates the UI into **read components** (available to everyone) and **write components** (gated behind wallet connection):
+The typical pattern separates the UI into components by their access requirements:
+
+- **Chain reads + datalake reads/writes** — available to everyone, no wallet needed
+- **Chain writes** (`addPayloadsToChain`) — gated behind wallet connection
 
 ```tsx
 function App() {
@@ -199,7 +204,7 @@ function App() {
 
   return (
     <WalletGatewayProvider gatewayName={MainNetwork.id}>
-      {/* Always visible — read-only, powered by in-page gateway */}
+      {/* Always visible — chain reads + datalake reads/writes, no wallet */}
       <Header />
       <GameHistory />
       <Leaderboard />
@@ -207,20 +212,20 @@ function App() {
       {/* Always render — handles both unconnected and connected states */}
       <ConnectAccountsStack onAccountConnected={setAddress} />
 
-      {/* Write-gated — only rendered after wallet connection */}
+      {/* Wallet-gated — only chain transactions need the wallet */}
       {address && <ActiveGame address={address} />}
     </WalletGatewayProvider>
   )
 }
 ```
 
-This gives visitors immediate value (browsing data) while requiring authentication only for state-changing actions. Note that `ConnectAccountsStack` is always rendered — it manages its own display for both the connection prompt and the post-connection state, so do not conditionally swap it for a custom connected UI.
+This gives visitors immediate value (browsing data, and the dApp can write to the datalake on their behalf) while requiring wallet authentication only for on-chain transactions. Note that `ConnectAccountsStack` is always rendered — it manages its own display for both the connection prompt and the post-connection state, so do not conditionally swap it for a custom connected UI.
 
 ---
 
 ## dApp State Management: Local Store + Remote Datalake
 
-Each browser session is isolated — payloads submitted by Player A are invisible to Player B unless both read from a shared data source. The browser wallet does **not** persist off-chain payloads anywhere, and the datalake is not a property on the gateway JS object. The dApp must manage its own state with two layers:
+Each browser session is isolated — payloads submitted by Player A are invisible to Player B unless both read from a shared data source. The wallet and the dApp are independent datalake clients (see [Datalakes](../xl1-knowledge/datalakes.md)), so the dApp cannot rely on the wallet's datalake for cross-player visibility. The dApp must manage its own state with two layers:
 
 ### Architecture
 
@@ -248,22 +253,27 @@ Each browser session is isolated — payloads submitted by Player A are invisibl
 
 1. **Local payload store** — React state backed by `localStorage`. Updated immediately when this browser submits a payload. Provides instant UI feedback without a network round-trip. Also syncs across tabs of the same browser via the `storage` event.
 
-2. **Remote datalake** — the shared archivist endpoint (see [Datalakes — HTTP Endpoints](../xl1-knowledge/datalakes.md)). Use `RestDataLakeRunner` (for writes) and `RestDataLakeViewer` (for reads) from `@xyo-network/xl1-sdk`. The dApp pushes payloads here on every submit and polls periodically to discover payloads from other players. Results are merged into the local store with deduplication by data hash.
+2. **Remote datalake (dApp-configured)** — the dApp's own datalake endpoint, configured independently of the wallet's datalake. Use `RestDataLakeRunner` (for writes) and `RestDataLakeViewer` (for reads) from `@xyo-network/xl1-sdk`. The dApp pushes payloads here on every submit and polls periodically to discover payloads from other players. Results are merged into the local store with deduplication by data hash. Because this is the dApp's own HTTP connection, it works with or without a wallet — and the dApp controls exactly where the data goes.
 
 ### Submit flow
 
-On every user action (create game, commit, reveal, settle), **insert into the datalake first, then submit the transaction**. This ordering ensures the payload data is persisted even if the transaction succeeds but the datalake insert would have failed after:
+On every user action (create game, commit, reveal, settle), **insert into the dApp's datalake first, then submit the transaction**. This ordering ensures the payload data is persisted in the dApp's datalake even if the chain submission fails:
 
 ```ts
-// 1. Insert into remote datalake — makes payload visible to other players
+// 1. Insert into the dApp's datalake (plain HTTP, no wallet needed)
+//    Makes payload visible to other players polling this datalake
 await datalakeRunner.insert(payloads)
 
 // 2. Store locally for immediate UI update
 addPayloads(payloads)
 
 // 3. Submit transaction to chain via wallet
+//    The wallet may also write to its own datalake — but the dApp
+//    cannot rely on that being the same endpoint or being configured
 const [txHash] = await gateway.addPayloadsToChain([], payloads)
 ```
+
+Steps 1 and 2 are dApp-controlled and work without a wallet. Step 3 requires the wallet. The wallet may independently persist payloads to its own datalake during the transaction, but the dApp should treat that as opaque — always write to its own datalake explicitly.
 
 ### Poll flow
 
@@ -317,7 +327,9 @@ Hashes and addresses appear throughout dApp UIs: game IDs, player addresses, tra
 | Decision | Guidance |
 |----------|----------|
 | Component needs to read chain data? | Use `useProvidedGateway()` — works with in-page gateway, no wallet needed |
-| Component needs to write to chain? | Guard with `'addPayloadsToChain' in defaultGateway` check, require wallet connection |
-| Display data to unauthenticated users? | Place read-only components outside the wallet connection gate |
+| Component needs to read/write the datalake? | Use `RestDataLakeRunner`/`RestDataLakeViewer` — the dApp's own HTTP datalake client. Works for any visitor, no wallet needed. |
+| Component needs to submit a chain transaction? | Guard with `'addPayloadsToChain' in defaultGateway` check, require wallet connection |
+| Does the wallet's datalake cover the dApp's needs? | **Don't assume so.** The wallet and dApp are independent datalake clients. They may point to the same, different, or no endpoints. Always write to the dApp's datalake explicitly. |
+| Display data to unauthenticated users? | Place read components outside the wallet connection gate |
 | Need to poll for updates? | Use the polling pattern from [Chain Data Indexing](chain-data-indexing.md) — works with in-page gateway |
 | Which network for development? | Use Sequence (beta) — live chain, no real tokens. See [Gateway](../xl1-knowledge/gateway.md) |
