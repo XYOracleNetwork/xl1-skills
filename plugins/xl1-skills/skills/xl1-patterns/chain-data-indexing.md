@@ -77,11 +77,12 @@ Application data goes in the `offChain` parameter of `addPayloadsToChain`, but *
 
 ```ts
 import { PayloadBuilder } from '@xyo-network/sdk-js'
-import { RestDataLakeRunner } from '@xyo-network/xl1-sdk'
+import { RestDataLakeRunner, type RestDataLakeRunnerParams } from '@xyo-network/xl1-sdk'
 
-const datalakeRunner = new RestDataLakeRunner({
+const datalakeRunner = await RestDataLakeRunner.create({
+  context,
   endpoint: 'https://api.archivist.xyo.network/dataLake',
-})
+} satisfies RestDataLakeRunnerParams)
 
 const movePayload = new PayloadBuilder({ schema: MoveSchema })
   .fields({ gameId: 'abc123', move: 'rock' })
@@ -122,12 +123,13 @@ The gateway's `ViewerWithDataLake` transparently resolves off-chain payloads —
 When you need to find all payloads of a given type regardless of which transaction included them, use `RestDataLakeViewer` from `@xyo-network/xl1-sdk`. The datalake is a standalone HTTP archivist — not a property on the gateway JS object. See [Datalakes — HTTP Endpoints](../xl1-knowledge/datalakes.md) for the endpoint URLs.
 
 ```ts
-import { RestDataLakeViewer } from '@xyo-network/xl1-sdk'
+import { RestDataLakeViewer, type RestDataLakeViewerParams } from '@xyo-network/xl1-sdk'
 
-const viewer = new RestDataLakeViewer({
+const viewer = await RestDataLakeViewer.create({
+  context,
   endpoint: 'https://api.archivist.xyo.network/dataLake',
   allowedSchemas: [MoveSchema],
-})
+} satisfies RestDataLakeViewerParams)
 
 const moves = await viewer.next()
 ```
