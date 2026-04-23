@@ -1,5 +1,5 @@
 {
-  "name": "xl1-stack",
+  "name": "xl1-skills",
   "version": "1.0.0",
   "description": "Full-stack Claude Code skills for building dApps on the XL1 blockchain. Covers XYO primitives, XL1 chain operations, toolchain config, and prescriptive design patterns (commit-reveal, indexing, prediction markets).",
   "author": {
@@ -7,8 +7,8 @@
     "email": "support@xylabs.com",
     "url": "https://github.com/XYOracleNetwork"
   },
-  "homepage": "https://github.com/XYOracleNetwork/rock-paper-scissors-skill-test",
-  "repository": "https://github.com/XYOracleNetwork/rock-paper-scissors-skill-test",
+  "homepage": "https://github.com/XYOracleNetwork/xl1-skills",
+  "repository": "https://github.com/XYOracleNetwork/xl1-skills",
   "license": "MIT",
   "keywords": [
     "xl1",
