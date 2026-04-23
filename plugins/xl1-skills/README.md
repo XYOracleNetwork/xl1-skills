@@ -1,4 +1,4 @@
-# xl1-stack
+# xl1-skills
 
 Claude Code skills for building dApps on the XL1 blockchain (XYO Layer One).
 
@@ -20,10 +20,10 @@ Skills use progressive loading — each `SKILL.md` is a lightweight router that 
 
 ```shell
 # Add the marketplace
-/plugin marketplace add XYOracleNetwork/rock-paper-scissors-skill-test
+/plugin marketplace add XYOracleNetwork/xl1-skills
 
 # Install the plugin
-/plugin install xl1-stack@xyo-skills
+/plugin install xl1-skills
 ```
 
 ## Usage

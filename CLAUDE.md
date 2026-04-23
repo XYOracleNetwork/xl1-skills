@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repo serves two roles:
 
-1. **Claude Code plugin marketplace** — packages a 5-layer XL1/XYO skill stack as an installable plugin (`plugins/xl1-stack/`)
+1. **Claude Code plugin marketplace** — packages a 5-layer XL1/XYO skill stack as an installable plugin (`plugins/xl1-skills/`)
 2. **Evaluation test bed** — `src/` is where a rock-paper-scissors game gets built to test the skill stack's quality
 
 The skills themselves are the primary artifact. When implementation reveals incorrect or misleading guidance in a skill, update the skill file — not just the application code.
@@ -16,8 +16,8 @@ The skills themselves are the primary artifact. When implementation reveals inco
 This repo follows the Claude Code plugin marketplace pattern:
 
 - **`.claude-plugin/marketplace.json`** — marketplace manifest (registers all plugins)
-- **`plugins/xl1-stack/`** — the main plugin, with its own `.claude-plugin/plugin.json`
-- **`plugins/xl1-stack/skills/`** — 5 skill layers using progressive loading
+- **`plugins/xl1-skills/`** — the main plugin, with its own `.claude-plugin/plugin.json`
+- **`plugins/xl1-skills/skills/`** — 5 skill layers using progressive loading
 
 Skills use progressive loading — each `SKILL.md` is a lightweight router that directs you to read sub-files on demand based on context. Layers cascade top-down:
 
@@ -45,7 +45,7 @@ When building application features on XL1, start with Layer 5's SKILL.md — it 
 To validate plugin structure locally:
 ```shell
 jq empty .claude-plugin/marketplace.json
-jq empty plugins/xl1-stack/.claude-plugin/plugin.json
+jq empty plugins/xl1-skills/.claude-plugin/plugin.json
 ```
 
 Once `src/` has a `package.json`, use the repo's scripts (e.g. `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm dev`) — never raw tool commands.

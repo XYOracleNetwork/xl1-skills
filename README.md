@@ -1,4 +1,4 @@
-# XYO Skills Marketplace
+# XL1 Skills
 
 Claude Code plugin marketplace for XL1 blockchain and XYO protocol development.
 
@@ -6,15 +6,15 @@ Claude Code plugin marketplace for XL1 blockchain and XYO protocol development.
 
 ```shell
 # Add the marketplace
-/plugin marketplace add XYOracleNetwork/rock-paper-scissors-skill-test
+/plugin marketplace add XYOracleNetwork/xl1-skills
 
 # Install the XL1 skill stack
-/plugin install xl1-stack@xyo-skills
+/plugin install xl1-skills
 ```
 
 ## Plugins
 
-### [xl1-stack](plugins/xl1-stack/)
+### [xl1-skills](plugins/xl1-skills/)
 
 Full-stack skills for building dApps on XL1. Five cascading layers covering design patterns, chain operations, XYO primitives, build tooling, and development conventions.
 
@@ -25,10 +25,10 @@ Add to your project's `.claude/settings.json` for automatic marketplace availabi
 ```json
 {
   "extraKnownMarketplaces": {
-    "xyo-skills": {
+    "xl1-skills": {
       "source": {
         "source": "github",
-        "repo": "XYOracleNetwork/rock-paper-scissors-skill-test"
+        "repo": "XYOracleNetwork/xl1-skills"
       }
     }
   }
