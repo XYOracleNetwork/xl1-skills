@@ -89,7 +89,7 @@ A feature is not complete until **all of the following are true**:
 ### 5. Dev Server Starts (apps only)
 - If the project is an application with a dev server (`pnpm dev` or equivalent), start it and confirm it launches without errors
 - The production build and dev server often use different tools (e.g., Vite uses Rollup for `build` but esbuild for `dev`) — passing one does not guarantee the other
-- **Open the app in the browser and check the console for errors.** Missing transitive peer dependencies, incorrect polyfills, and other runtime-only failures will not surface from the terminal output alone — they appear as errors in the browser console. If an MCP-connected browser is available, use it to inspect the console. Otherwise, open the dev URL manually and verify no errors appear.
+- This is a fast smoke test: start the server, confirm no crash, then stop it
 
 ### 6. No Placeholders or Mocks in Delivered Code
 - Every user-visible action must do what it claims. If the UI says "Recorded on XL1 Blockchain", the code must actually submit a transaction — not call `console.log` with a TODO comment.
