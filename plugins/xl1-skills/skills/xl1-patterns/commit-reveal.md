@@ -119,7 +119,10 @@ async function submitCommit(
   const salt = generateSalt()
   const commitment = await createCommitment(choice, salt)
 
-  const currentBlock = await gateway.call('blockViewer_currentBlockNumber', [])
+  // RPC viewers live on the gateway's connection — `XyoGatewayRunner` has no `.call(...)` method.
+  const viewer = gateway.connection.viewer
+  if (!viewer) throw new Error('Gateway has no viewer attached')
+  const currentBlock = Number(await viewer.block.currentBlockNumber())
 
   const commitPayload = new PayloadBuilder({ schema: CommitSchema })
     .fields({
@@ -230,10 +233,12 @@ interface CommitRevealConfig {
 }
 
 async function checkDeadline(
-  gateway: ReturnType<typeof useProvidedGateway>['defaultGateway'],
+  gateway: XyoGateway | XyoGatewayRunner,
   deadline: number,
 ): Promise<'active' | 'expired'> {
-  const current = await gateway.call('blockViewer_currentBlockNumber', [])
+  const viewer = gateway.connection.viewer
+  if (!viewer) throw new Error('Gateway has no viewer attached')
+  const current = Number(await viewer.block.currentBlockNumber())
   return current >= deadline ? 'expired' : 'active'
 }
 ```
