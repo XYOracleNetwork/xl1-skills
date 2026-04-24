@@ -7,14 +7,17 @@
 //
 // Defaults: target-dir=src, template=react.
 
-import { resolve } from 'node:path'
+import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
 
-import { expandWithPeers, resolveLatestPnpmByMajor, resolveVersions } from './registry.js'
+import { nodeTemplate, reactTemplate } from './presets/index.js'
+import {
+  expandWithPeers, resolveLatestPnpmByMajor, resolveVersions,
+} from './registry.js'
 import { BASE, type Template } from './template.js'
-import { nodeTemplate } from './presets/node.js'
-import { reactTemplate } from './presets/react.js'
-import { copyTemplateFile, ensureTargetDir, resolveTemplatesRoot, runPnpmStep, writeJson } from './writer.js'
+import {
+  copyTemplateFile, ensureTargetDir, resolveTemplatesRoot, runPnpmStep, writeJson,
+} from './writer.js'
 
 const TEMPLATES: Record<string, Template> = {
   react: reactTemplate,
@@ -28,11 +31,11 @@ const TEMPLATES: Record<string, Template> = {
 const PNPM_MAJOR = '10'
 const PACKAGE_NAME = 'xl1-dapp'
 
-type Args = {
-  target: string
-  templateName: string
+interface Args {
   force: boolean
   noInstall: boolean
+  target: string
+  templateName: string
 }
 
 // Supported flag forms (any order relative to each other and to positionals):
@@ -44,17 +47,19 @@ function parseArgs(argv: string[]): Args {
     args: argv,
     allowPositionals: true,
     options: {
-      template: { type: 'string', short: 't', default: 'react' },
-      target: { type: 'string' },
-      force: { type: 'boolean', default: false },
+      'template': {
+        type: 'string', short: 't', default: 'react',
+      },
+      'target': { type: 'string' },
+      'force': { type: 'boolean', default: false },
       'no-install': { type: 'boolean', default: false },
     },
   })
   return {
     target: values.target ?? positionals[0] ?? 'src',
-    templateName: values.template!,
-    force: values.force!,
-    noInstall: values['no-install']!,
+    templateName: values.template,
+    force: values.force,
+    noInstall: values['no-install'],
   }
 }
 
@@ -63,17 +68,17 @@ function buildTsconfig(template: Template) {
     extends: template.tsconfig.extends,
     compilerOptions: {
       ...BASE.tsconfig.compilerOptions,
-      ...(template.tsconfig.compilerOptions ?? {}),
+      ...template.tsconfig.compilerOptions,
     },
     include: BASE.tsconfig.include,
   }
 }
 
 function buildPackageJson(args: {
-  template: Template
   dependencies: Record<string, string>
   devDependencies: Record<string, string>
   packageManager: string
+  template: Template
 }) {
   return {
     name: PACKAGE_NAME,
@@ -88,29 +93,11 @@ function buildPackageJson(args: {
   }
 }
 
-async function main() {
-  const { target: targetArg, templateName, force, noInstall } = parseArgs(process.argv.slice(2))
-  const template = TEMPLATES[templateName]
-  if (!template) {
-    console.error(`Unknown template: ${templateName}. Available: ${Object.keys(TEMPLATES).join(', ')}`)
-    process.exit(1)
-  }
-
-  // Prefer INIT_CWD — pnpm sets it to the user's original invocation dir.
-  // Without this, running via `pnpm --filter ... run scaffold` resolves
-  // relative to the filtered workspace package, not where the user ran from.
-  const invocationCwd = process.env.INIT_CWD ?? process.cwd()
-  const target = resolve(invocationCwd, targetArg)
-  const templatesRoot = resolveTemplatesRoot(import.meta.url)
-
-  console.log(`Bootstrapping ${template.description} at: ${target}`)
-  ensureTargetDir(target, force)
-
+async function resolveVersionsForTemplate(template: Template) {
   console.log('Resolving dependency graph from npm registry...')
   const runtime = [...template.deps.runtime, ...(template.deps.extras ?? [])]
   const expandedRuntime = await expandWithPeers(runtime, template.deps.dev)
   console.log(`  ${expandedRuntime.length} runtime deps (${template.deps.runtime.length} direct + peers + extras)`)
-
   const [dependencies, devDependencies, pnpmVersion] = await Promise.all([
     resolveVersions(expandedRuntime),
     resolveVersions(template.deps.dev),
@@ -118,8 +105,37 @@ async function main() {
   ])
   const packageManager = `pnpm@${pnpmVersion}`
   console.log(`  packageManager: ${packageManager}`)
+  return {
+    dependencies, devDependencies, packageManager,
+  }
+}
 
-  writeJson(target, 'package.json', buildPackageJson({ template, dependencies, devDependencies, packageManager }))
+async function main() {
+  const {
+    target: targetArg, templateName, force, noInstall,
+  } = parseArgs(process.argv.slice(2))
+  const template = TEMPLATES[templateName]
+  if (!template) {
+    throw new Error(`Unknown template: ${templateName}. Available: ${Object.keys(TEMPLATES).join(', ')}`)
+  }
+
+  // Prefer INIT_CWD — pnpm sets it to the user's original invocation dir.
+  // Without this, running via `pnpm --filter ... run scaffold` resolves
+  // relative to the filtered workspace package, not where the user ran from.
+  const invocationCwd = process.env.INIT_CWD ?? process.cwd()
+  const target = path.resolve(invocationCwd, targetArg)
+  const templatesRoot = resolveTemplatesRoot(import.meta.url)
+
+  console.log(`Bootstrapping ${template.description} at: ${target}`)
+  ensureTargetDir(target, force)
+
+  const {
+    dependencies, devDependencies, packageManager,
+  } = await resolveVersionsForTemplate(template)
+
+  writeJson(target, 'package.json', buildPackageJson({
+    template, dependencies, devDependencies, packageManager,
+  }))
   writeJson(target, 'tsconfig.json', buildTsconfig(template))
   for (const f of [...BASE.sharedFiles, ...template.files]) copyTemplateFile(templatesRoot, template.name, f, target)
 

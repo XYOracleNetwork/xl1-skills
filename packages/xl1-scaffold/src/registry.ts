@@ -1,4 +1,4 @@
-type Packument = {
+interface Packument {
   version?: string
   peerDependencies?: Record<string, string>
 }

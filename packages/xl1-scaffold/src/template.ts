@@ -1,9 +1,9 @@
-export type TemplateFile = {
+export interface TemplateFile {
   src: string
   dest: string
 }
 
-export type Template = {
+export interface Template {
   name: string
   description: string
   deps: {
@@ -23,11 +23,11 @@ export type Template = {
 
 export const BASE = {
   scripts: {
-    lint: 'eslint .',
+    'lint': 'eslint .',
     'lint:fix': 'eslint . --fix',
-    test: 'vitest run',
+    'test': 'vitest run',
     'test:watch': 'vitest',
-    typecheck: 'tsc --noEmit',
+    'typecheck': 'tsc --noEmit',
   },
   tsconfig: {
     compilerOptions: { outDir: './dist', rootDir: './src' },
