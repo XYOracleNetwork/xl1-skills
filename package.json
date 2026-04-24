@@ -12,6 +12,10 @@
     "scaffold:dev": "pnpm --filter @xyo-network/xl1-scaffold run scaffold:dev"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
+  },
+  "volta": {
+    "node": "24.15.0",
+    "pnpm": "10.33.2"
   }
 }

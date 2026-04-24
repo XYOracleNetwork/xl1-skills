@@ -116,6 +116,23 @@ export const isMarketSettlementPayload = zodIsFactory(MarketSettlementPayloadZod
 
 ---
 
+## Datalake Setup
+
+The phase functions below use a `datalakeRunner` to persist payloads independently of the wallet. Create it once and share across your application. See [Gateway Usage — Accessing the Datalake](gateway-usage.md) for full details.
+
+```ts
+import { RestDataLakeRunner, type RestDataLakeRunnerParams } from '@xyo-network/xl1-sdk'
+import { getTestProviderContext } from '@xyo-network/xl1-protocol-sdk/test'
+
+const context = getTestProviderContext()
+const datalakeRunner = await RestDataLakeRunner.create({
+  context,
+  endpoint: 'https://api.archivist.xyo.network/dataLake',
+} satisfies RestDataLakeRunnerParams)
+```
+
+---
+
 ## Phase 1: Create Market
 
 The market creator defines the question, valid options, and deadlines. This is the first payload recorded on-chain:
@@ -151,7 +168,6 @@ async function createMarket(
   )
 
   // Insert into the dApp's datalake first — the wallet does not do this automatically.
-  // datalakeRunner is a RestDataLakeRunner from @xyo-network/xl1-sdk.
   await datalakeRunner.insert([marketPayload])
 
   const [txHash] = await gateway.addPayloadsToChain([], [marketPayload])
