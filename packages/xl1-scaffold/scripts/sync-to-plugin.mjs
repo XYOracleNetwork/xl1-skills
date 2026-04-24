@@ -7,7 +7,7 @@
 // Runs as part of `pnpm build` in packages/xl1-scaffold. CI verifies the
 // plugin tree is in sync via `git diff --exit-code plugins/xl1-skills/bin`.
 
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -63,6 +63,11 @@ function copyFiltered(src, dest) {
 }
 
 copyFiltered(SRC, DEST)
+
+// Mark the CLI entry executable so it can be invoked as a bare command when
+// Claude Code adds this bin/ to PATH. tsc preserves the shebang but not the
+// exec bit. Git tracks this mode (mode 0o755) once the file is staged.
+chmodSync(join(DEST, 'bootstrap-xl1-dapp.js'), 0o755)
 
 // Re-emit README so it survives the rmSync above.
 writeFileSync(
