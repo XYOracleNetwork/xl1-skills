@@ -109,6 +109,33 @@ jobs:
           echo "================================"
           echo "✅ All plugins validated successfully!"
 
+  validate-scaffold-sync:
+    name: Verify scaffold bin/ is in sync with source
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install workspace deps
+        run: corepack pnpm@10 install --frozen-lockfile
+
+      - name: Build scaffold (mirrors into plugins/xl1-skills/bin/)
+        run: corepack pnpm@10 -w run build
+
+      - name: Fail if plugin bin/ drifted from source
+        run: |
+          if ! git diff --exit-code plugins/xl1-skills/bin; then
+            echo ""
+            echo "✗ plugins/xl1-skills/bin/ is out of sync with packages/xl1-scaffold/."
+            echo "  Run 'pnpm -w run build' locally and commit the changes."
+            exit 1
+          fi
+          echo "✓ Scaffold bin/ is in sync"
+
   check-duplicates:
     name: Check for Duplicate Plugin Names
     runs-on: ubuntu-latest
