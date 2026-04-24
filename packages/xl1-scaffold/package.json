@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "scaffold-xl1": "./dist/bootstrap-xl1-dapp.js"
+    "scaffold-xl1": "./dist/scaffold-xl1-dapp.js"
   },
   "scripts": {
     "build": "pnpm clean && tsc && node scripts/copy-templates.mjs && node scripts/sync-to-plugin.mjs",
@@ -12,8 +12,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "scaffold": "node dist/bootstrap-xl1-dapp.js",
-    "scaffold:dev": "tsx src/bootstrap-xl1-dapp.ts"
+    "scaffold": "node dist/scaffold-xl1-dapp.js",
+    "scaffold:dev": "tsx src/scaffold-xl1-dapp.ts"
   },
   "devDependencies": {
     "@types/node": "*",

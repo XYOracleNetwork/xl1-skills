@@ -27,7 +27,7 @@ If ambiguous, ask one question: *"Are you starting a new project, or adding to a
 
 ## Invocation
 
-The scaffold runtime ships with this plugin under `scripts/bootstrap/` (synced from `packages/xl1-scaffold/` at build time). Invoke it directly with Node — `${CLAUDE_SKILL_DIR}` resolves to this skill's directory at runtime.
+The scaffold runtime ships with this plugin under `scripts/scaffold/` (synced from `packages/xl1-scaffold/` at build time). Invoke it directly with Node — `${CLAUDE_SKILL_DIR}` resolves to this skill's directory at runtime.
 
 ### Template
 
@@ -42,7 +42,7 @@ Default to **react** unless the user explicitly wants a Node-only service (no br
 ### Run the scaffold
 
 ```shell
-node "${CLAUDE_SKILL_DIR}/scripts/bootstrap/bootstrap-xl1-dapp.js" <target> --template=<react|node>
+node "${CLAUDE_SKILL_DIR}/scripts/scaffold/scaffold-xl1-dapp.js" <target> --template=<react|node>
 ```
 
 The scaffold:
@@ -50,7 +50,7 @@ The scaffold:
 1. Resolves the full runtime dependency graph from the npm registry (direct deps + peers).
 2. Writes `package.json`, `tsconfig.json`, `eslint.config.mjs`, `vite.config.ts` (React), source files, and `.gitignore`.
 3. Runs `pnpm install`, then `pnpm typecheck`, `pnpm lint`, `pnpm build`, and — for the Node template — a smoke test that executes the compiled output.
-4. Prints per-step status; the final line says "Bootstrap complete" on success.
+4. Prints per-step status; the final line says "Scaffold complete" on success.
 
 If any step fails, the scaffold exits non-zero. Relay the failing output to the user verbatim before attempting a fix.
 

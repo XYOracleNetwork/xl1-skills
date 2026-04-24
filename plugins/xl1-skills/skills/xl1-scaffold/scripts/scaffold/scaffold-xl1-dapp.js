@@ -134,4 +134,4 @@ main().catch((err) => {
     }
     process.exit(1);
 });
-//# sourceMappingURL=bootstrap-xl1-dapp.js.map
+//# sourceMappingURL=scaffold-xl1-dapp.js.map

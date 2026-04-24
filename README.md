@@ -90,9 +90,9 @@ Add a directory-based marketplace to your `.claude/settings.json` (project or us
 
 Then run `/plugin install xl1-skills` in your next session.
 
-### Building the Scaffold (required for the `xl1-scaffold` skill)
+### Building the Scaffold Package (required for the `xl1-scaffold` skill)
 
-The `xl1-scaffold` skill invokes a compiled CLI bundled under `plugins/xl1-skills/skills/xl1-scaffold/scripts/bootstrap/`. That directory is **generated** from the TypeScript source at `packages/xl1-scaffold/`; it is not hand-authored. Before testing the scaffold skill locally, build it at least once:
+The `xl1-scaffold` skill invokes a compiled CLI bundled under `plugins/xl1-skills/skills/xl1-scaffold/scripts/scaffold/`. That directory is **generated** from the TypeScript source at `packages/xl1-scaffold/`; it is not hand-authored. Before testing the scaffold skill locally, build it at least once:
 
 ```shell
 corepack enable                      # first time only — ensures pnpm 10.x is available

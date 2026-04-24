@@ -128,7 +128,7 @@ jobs:
 
       - name: Fail if scaffold runtime drifted from source
         run: |
-          SYNC_PATH=plugins/xl1-skills/skills/xl1-scaffold/scripts/bootstrap
+          SYNC_PATH=plugins/xl1-skills/skills/xl1-scaffold/scripts/scaffold
           if ! git diff --exit-code "$SYNC_PATH"; then
             echo ""
             echo "✗ $SYNC_PATH is out of sync with packages/xl1-scaffold/."

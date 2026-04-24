@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Mirrors packages/xl1-scaffold/templates/ into dist/templates/ so the compiled
-// bootstrap script is self-contained.
+// scaffold script is self-contained.
 
 import { cpSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
