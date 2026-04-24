@@ -86,6 +86,35 @@ function App() {
 
 ---
 
+## Datalake Client Setup
+
+The datalake is independent of the gateway — it is the dApp's own HTTP client. Create standalone `RestDataLakeViewer` (reads) and `RestDataLakeRunner` (writes) instances that all components share. See [Gateway Usage — Accessing the Datalake](gateway-usage.md) for full details.
+
+```ts
+import { RestDataLakeViewer, RestDataLakeRunner, type RestDataLakeViewerParams, type RestDataLakeRunnerParams } from '@xyo-network/xl1-sdk'
+import { getTestProviderContext } from '@xyo-network/xl1-protocol-sdk/test'
+
+const context = getTestProviderContext()
+const DATALAKE_ENDPOINT = 'https://api.archivist.xyo.network/dataLake'
+
+// Read — no wallet needed, works for any visitor
+const datalakeViewer = await RestDataLakeViewer.create({
+  context,
+  endpoint: DATALAKE_ENDPOINT,
+  allowedSchemas: [ResultSchema, MoveSchema],
+} satisfies RestDataLakeViewerParams)
+
+// Write — no wallet needed, dApp can insert payloads for any visitor
+const datalakeRunner = await RestDataLakeRunner.create({
+  context,
+  endpoint: DATALAKE_ENDPOINT,
+} satisfies RestDataLakeRunnerParams)
+```
+
+The examples below use `datalakeViewer` and `datalakeRunner` — these are the instances created above, not properties on the gateway.
+
+---
+
 ## Reading Chain Data Without Wallet
 
 Components that only read chain data work immediately — no wallet prompt:
@@ -100,7 +129,7 @@ function GameHistory() {
   useEffect(() => {
     if (!defaultGateway) return
 
-    // This works with just the in-page gateway — no wallet needed
+    // datalakeViewer is a standalone RestDataLakeViewer — see setup above
     const loadHistory = async () => {
       const payloads = await datalakeViewer.next({
         allowedSchemas: [ResultSchema],
@@ -163,7 +192,7 @@ function Leaderboard() {
     if (!defaultGateway) return
 
     const loadLeaders = async () => {
-      // Query result payloads from the datalake
+      // datalakeViewer is a standalone RestDataLakeViewer — see setup above
       const results = await datalakeViewer.next({
         allowedSchemas: [ResultSchema],
       })
@@ -289,6 +318,8 @@ localArchivist.on('inserted', ({ payloads }) => {
 On every user action (create game, commit, reveal, settle), **insert into the dApp's datalake first, then the local archivist, then submit the transaction**. This ordering ensures the payload data is persisted in the dApp's datalake even if the chain submission fails:
 
 ```ts
+// datalakeRunner is a standalone RestDataLakeRunner — see Datalake Client Setup above
+
 // 1. Insert into the dApp's datalake (plain HTTP, no wallet needed)
 //    Makes payload visible to other players polling this datalake
 await datalakeRunner.insert(payloads)
@@ -309,6 +340,7 @@ Steps 1 and 2 are dApp-controlled and work without a wallet. Step 3 requires the
 On a 5-second interval, fetch payloads from the remote datalake filtered by the application's schemas using `RestDataLakeViewer`. Insert into the local archivist — deduplication by data hash is automatic:
 
 ```ts
+// datalakeViewer is a standalone RestDataLakeViewer — see Datalake Client Setup above
 const remote = await datalakeViewer.next({ allowedSchemas: appSchemas })
 await localArchivist.insert(remote) // duplicates are ignored
 ```

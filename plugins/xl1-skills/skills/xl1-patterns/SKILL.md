@@ -18,6 +18,9 @@ These patterns compose primitives from the full skill stack:
 
 ## Table of Contents
 
+### [Gateway Usage](gateway-usage.md)
+Read when you need to interact with the XL1 chain from application code — reading chain state, submitting transactions, or accessing the datalake. Covers provider setup, viewer sub-viewers, transaction submission, standalone datalake clients, capability detection, and network selection.
+
 ### [Chain Data Indexing](chain-data-indexing.md)
 Read when your dApp needs to query, filter, or paginate application-specific data from the XL1 chain. Covers schema-based datalake filtering, RPC viewer queries, polling for new data, and building application read models from raw chain state.
 

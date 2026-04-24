@@ -45,72 +45,101 @@ For dApp development, start with **Sequence** (beta) to test against a live chai
 
 ## RPC Method Namespaces
 
-Methods follow the pattern `<namespace>_<methodName>`:
+Methods follow the pattern `<namespace>_<methodName>`. The **Wire Name** column shows the JSON-RPC method string (transport layer). The **TypeScript API** column shows the typed accessor on `gateway.connection.viewer` — this is what application code should use. See [Gateway Usage](../xl1-patterns/gateway-usage.md) for full usage examples.
 
-### Block Queries (`blockViewer_*`)
+**`connection.viewer` is optional** (`XyoViewer | undefined`). The in-page gateway populates it once it finishes resolving, but a wallet-only or runner-only gateway may not have a viewer. Always guard access with `?.` or an explicit null check.
 
-| Method | Parameters | Returns |
-|--------|-----------|---------|
-| `blockViewer_blocksByHash` | `(hash, limit?)` | `SignedHydratedBlockWithHashMeta[]` |
-| `blockViewer_blocksByNumber` | `(block, limit?)` | `SignedHydratedBlockWithHashMeta[]` |
-| `blockViewer_blockByHash` | `(hash)` | `SignedHydratedBlockWithHashMeta \| null` |
-| `blockViewer_blockByNumber` | `(block)` | `SignedHydratedBlockWithHashMeta \| null` |
-| `blockViewer_currentBlock` | `()` | `SignedHydratedBlockWithHashMeta` |
-| `blockViewer_currentBlockNumber` | `()` | `XL1BlockNumber` |
-| `blockViewer_currentBlockHash` | `()` | `Hash` |
-| `blockViewer_chainId` | `(blockNumber?)` | `ChainId` |
-| `blockViewer_payloadsByHash` | `(hashes)` | `WithHashMeta<Payload>[]` |
+### Block Queries (`blockViewer_*`) — `connection.viewer.block`
 
-### Transaction Queries (`transactionViewer_*`)
+| Wire Name | TypeScript API | Parameters | Returns |
+|-----------|---------------|-----------|---------|
+| `blockViewer_blocksByHash` | `.block.blocksByHash(...)` | `(hash, limit?)` | `SignedHydratedBlockWithHashMeta[]` |
+| `blockViewer_blocksByNumber` | `.block.blocksByNumber(...)` | `(block, limit?)` | `SignedHydratedBlockWithHashMeta[]` |
+| `blockViewer_blockByHash` | `.block.blockByHash(...)` | `(hash)` | `SignedHydratedBlockWithHashMeta \| null` |
+| `blockViewer_blockByNumber` | `.block.blockByNumber(...)` | `(block)` | `SignedHydratedBlockWithHashMeta \| null` |
+| `blockViewer_currentBlock` | `.block.currentBlock()` | `()` | `SignedHydratedBlockWithHashMeta` |
+| `blockViewer_currentBlockNumber` | `.block.currentBlockNumber()` | `()` | `XL1BlockNumber` |
+| `blockViewer_currentBlockHash` | `.block.currentBlockHash()` | `()` | `Hash` |
+| `blockViewer_chainId` | `.block.chainId(...)` | `(blockNumber?)` | `ChainId` |
+| `blockViewer_payloadsByHash` | `.block.payloadsByHash(...)` | `(hashes)` | `WithHashMeta<Payload>[]` |
 
-| Method | Parameters | Returns |
-|--------|-----------|---------|
-| `transactionViewer_byHash` | `(txHash)` | `SignedHydratedTransactionWithHashMeta \| null` |
-| `transactionViewer_byBlockHashAndIndex` | `(blockHash, index)` | `SignedHydratedTransactionWithHashMeta \| null` |
-| `transactionViewer_byBlockNumberAndIndex` | `(blockNumber, index)` | `SignedHydratedTransactionWithHashMeta \| null` |
+### Transaction Queries (`transactionViewer_*`) — `connection.viewer.transaction`
 
-### Account Balances (`accountBalanceViewer_*`)
+| Wire Name | TypeScript API | Parameters | Returns |
+|-----------|---------------|-----------|---------|
+| `transactionViewer_byHash` | `.transaction.byHash(...)` | `(txHash)` | `SignedHydratedTransactionWithHashMeta \| null` |
+| `transactionViewer_byBlockHashAndIndex` | `.transaction.byBlockHashAndIndex(...)` | `(blockHash, index)` | `SignedHydratedTransactionWithHashMeta \| null` |
+| `transactionViewer_byBlockNumberAndIndex` | `.transaction.byBlockNumberAndIndex(...)` | `(blockNumber, index)` | `SignedHydratedTransactionWithHashMeta \| null` |
 
-| Method | Parameters | Returns |
-|--------|-----------|---------|
-| `accountBalanceViewer_accountBalance` | `(address, config?)` | `AttoXL1` |
-| `accountBalanceViewer_accountBalances` | `(addresses, config?)` | `Record<Address, AttoXL1>` |
-| `accountBalanceViewer_accountBalanceHistory` | `(address, config?)` | `AccountBalanceHistoryItem[]` |
+### Account Balances (`accountBalanceViewer_*`) — `connection.viewer.account.balance`
 
-### Finalization (`finalizationViewer_*`)
+| Wire Name | TypeScript API | Parameters | Returns |
+|-----------|---------------|-----------|---------|
+| `accountBalanceViewer_accountBalance` | `.account.balance.accountBalance(...)` | `(address, config?)` | `AttoXL1` |
+| `accountBalanceViewer_accountBalances` | `.account.balance.accountBalances(...)` | `(addresses, config?)` | `Record<Address, AttoXL1>` |
+| `accountBalanceViewer_accountBalanceHistory` | `.account.balance.accountBalanceHistory(...)` | `(address, config?)` | `AccountBalanceHistoryItem[]` |
 
-| Method | Parameters | Returns |
-|--------|-----------|---------|
-| `finalizationViewer_head` | `()` | `SignedHydratedBlockWithHashMeta` |
-| `finalizationViewer_headNumber` | `()` | `XL1BlockNumber` |
-| `finalizationViewer_headHash` | `()` | `Hash` |
-| `finalizationViewer_chainId` | `()` | `ChainId` |
+### Finalization (`finalizationViewer_*`) — `connection.viewer.finalization`
 
-### Mempool (`mempoolViewer_*` / `mempoolRunner_*`)
+| Wire Name | TypeScript API | Parameters | Returns |
+|-----------|---------------|-----------|---------|
+| `finalizationViewer_head` | `.finalization.head()` | `()` | `SignedHydratedBlockWithHashMeta` |
+| `finalizationViewer_headNumber` | `.finalization.headNumber()` | `()` | `XL1BlockNumber` |
+| `finalizationViewer_headHash` | `.finalization.headHash()` | `()` | `Hash` |
+| `finalizationViewer_chainId` | `.finalization.chainId()` | `()` | `ChainId` |
 
-| Method | Parameters | Returns |
-|--------|-----------|---------|
-| `mempoolViewer_pendingBlocks` | `(options?)` | `SignedHydratedBlockWithHashMeta[]` |
-| `mempoolViewer_pendingTransactions` | `(options?)` | `SignedHydratedTransactionWithHashMeta[]` |
-| `mempoolRunner_submitBlocks` | `(blocks)` | `Hash[]` |
-| `mempoolRunner_submitTransactions` | `(txs)` | `Hash[]` |
+### Mempool (`mempoolViewer_*` / `mempoolRunner_*`) — `connection.viewer.mempool`
 
-### Staking (`stakeViewer_*`)
+| Wire Name | TypeScript API | Parameters | Returns |
+|-----------|---------------|-----------|---------|
+| `mempoolViewer_pendingBlocks` | `.mempool.pendingBlocks(...)` | `(options?)` | `SignedHydratedBlockWithHashMeta[]` |
+| `mempoolViewer_pendingTransactions` | `.mempool.pendingTransactions(...)` | `(options?)` | `SignedHydratedTransactionWithHashMeta[]` |
+| `mempoolRunner_submitBlocks` | _(via MempoolRunner)_ | `(blocks)` | `Hash[]` |
+| `mempoolRunner_submitTransactions` | _(via MempoolRunner)_ | `(txs)` | `Hash[]` |
 
-| Method | Parameters | Returns |
-|--------|-----------|---------|
-| `stakeViewer_stakeById` | `(id)` | `Position` |
-| `stakeViewer_stakesByStaker` | `(staker)` | `Position[]` |
-| `stakeViewer_stakesByStaked` | `(staked)` | `Position[]` |
-| `stakeViewer_activeStakes` | `()` | `Position[]` |
+### Staking (`stakeViewer_*`) — `connection.viewer.stake`
+
+| Wire Name | TypeScript API | Parameters | Returns |
+|-----------|---------------|-----------|---------|
+| `stakeViewer_stakeById` | `.stake.stakeById(...)` | `(id)` | `Position` |
+| `stakeViewer_stakesByStaker` | `.stake.stakesByStaker(...)` | `(staker)` | `Position[]` |
+| `stakeViewer_stakesByStaked` | `.stake.stakesByStaked(...)` | `(staked)` | `Position[]` |
+| `stakeViewer_activeStakes` | `.stake.activeStakes()` | `()` | `Position[]` |
+
+### Additional Sub-Viewers
+
+The `XyoViewer` interface also exposes these sub-viewers, which do not have direct RPC wire equivalents but are available on `connection.viewer`:
+
+| Sub-viewer | Type | Purpose |
+|------------|------|---------|
+| `.networkStake` | `NetworkStakeViewer` | Network-level staking queries |
+| `.step` | `StepViewer` | Step/epoch queries |
+| `.time` | `TimeSyncViewer` | Time synchronization queries |
 
 ### Transaction Operations (`xyoRunner_*` / `xyoSigner_*`)
 
-| Method | Parameters | Returns |
-|--------|-----------|---------|
+| Wire Name | Parameters | Returns |
+|-----------|-----------|---------|
 | `xyoRunner_broadcastTransaction` | `(tx)` | `Hash` |
 | `xyoSigner_address` | `()` | `Address` |
 | `xyoSigner_signTransaction` | `(tx)` | `SignedHydratedTransactionWithHashMeta` |
+
+These are internal to the wallet/runner transport. Application code uses `gateway.addPayloadsToChain()`, `gateway.send()`, etc. — see [Gateway Usage — Submitting Transactions](../xl1-patterns/gateway-usage.md).
+
+---
+
+## Connection Properties
+
+The gateway object (`XyoGateway` or `XyoGatewayRunner`) exposes chain access through `gateway.connection`:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `.viewer` | `XyoViewer \| undefined` | Read-only chain state (sub-viewers for blocks, transactions, balances, etc.) |
+| `.storage` | `DataLakeViewer \| undefined` | Read-only datalake attached to this connection. May not point to the dApp's desired endpoint. |
+| `.runner` | `XyoRunner \| undefined` | Low-level runner (internal — use gateway methods instead) |
+| `.network` | `XyoNetwork \| undefined` | Network metadata |
+
+**`connection.storage` is not the recommended datalake path.** It is a read-only `DataLakeViewer` populated from the connection's configuration — it cannot write, and it may not point to the endpoint the dApp wants to use. For datalake access, create standalone `RestDataLakeRunner` / `RestDataLakeViewer` clients. See [Gateway Usage — Accessing the Datalake](../xl1-patterns/gateway-usage.md) and [Datalakes](datalakes.md).
 
 ---
 

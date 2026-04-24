@@ -1,0 +1,289 @@
+# Gateway Usage
+
+Read this when you need to interact with the XL1 chain from application code — reading chain state, submitting transactions, or accessing the datalake. This is the recipe-style companion to the [Gateway reference](../xl1-knowledge/gateway.md).
+
+**Builds on:**
+- [Gateway](../xl1-knowledge/gateway.md) — RPC methods, networks, transports
+- [Browser Wallet](../xl1-knowledge/wallet.md) — providers, wallet connection, React integration
+- [Datalakes](../xl1-knowledge/datalakes.md) — DataLakeViewer, DataLakeRunner, endpoints
+- [Development on XL1](../xl1-knowledge/development.md) — root barrel imports, Viewer/Runner pattern
+
+---
+
+## Setup: Choosing Your Provider
+
+Two providers publish a gateway to React context. Both are in `@xyo-network/react-chain-client`:
+
+| Provider | Wallet required? | Read-only fallback | Use when |
+|----------|-----------------|-------------------|----------|
+| `WalletGatewayProvider` | Yes | No | App strictly requires a wallet for all functionality |
+| `GatewayProvider` + `InPageGatewaysProvider` | No | Yes (in-page HTTP gateway) | App should work read-only without a wallet |
+
+### Wallet-only setup
+
+```tsx
+import { WalletGatewayProvider } from '@xyo-network/react-chain-client'
+import { MainNetwork } from '@xyo-network/xl1-sdk'
+
+function App() {
+  return (
+    <WalletGatewayProvider gatewayName={MainNetwork.id}>
+      <YourDApp />
+    </WalletGatewayProvider>
+  )
+}
+```
+
+### Hybrid setup (read-only fallback)
+
+```tsx
+import { InPageGatewaysProvider, GatewayProvider } from '@xyo-network/react-chain-client'
+import { MainNetwork } from '@xyo-network/xl1-sdk'
+
+function App() {
+  return (
+    <InPageGatewaysProvider>
+      <GatewayProvider gatewayName={MainNetwork.id}>
+        <YourDApp />
+      </GatewayProvider>
+    </InPageGatewaysProvider>
+  )
+}
+```
+
+`GatewayProvider` requires `InPageGatewaysProvider` as an ancestor. It merges the in-page gateway and wallet gateway into a single `defaultGateway` — wallet wins when connected, in-page is the fallback.
+
+**`gatewayName` is required** on both providers. Without it, `defaultGateway` is always `undefined`. Use `MainNetwork.id` (value: `'mainnet'`) for production, `'sequence'` for beta/staging, `'local'` for local development.
+
+---
+
+## Accessing the Gateway
+
+Use `useProvidedGateway()` in any component under a gateway provider:
+
+```tsx
+import { useProvidedGateway } from '@xyo-network/react-chain-client'
+
+function MyComponent() {
+  const { defaultGateway } = useProvidedGateway()
+  // defaultGateway: XyoGateway | XyoGatewayRunner | undefined | null
+}
+```
+
+The return type is a union:
+- **`XyoGatewayRunner`** — write-capable (has `addPayloadsToChain`, `send`, etc.). Available when wallet is connected.
+- **`XyoGateway`** — read-only (has `connection.viewer` but no write methods). Available from the in-page gateway.
+- **`undefined` / `null`** — loading or no gateway available.
+
+---
+
+## Reading Chain State
+
+Chain state is accessed through sub-viewers on `gateway.connection.viewer`. The viewer is typed `XyoViewer | undefined` — always guard access.
+
+### Sub-viewer reference
+
+| Sub-viewer | Type | Key methods |
+|------------|------|-------------|
+| `.block` | `BlockViewer` | `currentBlockNumber()`, `currentBlock()`, `blockByNumber(n)`, `blockByHash(h)`, `payloadsByHash(hashes)` |
+| `.transaction` | `TransactionViewer` | `byHash(h)`, `byBlockNumberAndIndex(n, i)`, `byBlockHashAndIndex(h, i)` |
+| `.account.balance` | `AccountBalanceViewer` | `accountBalance(addr)`, `accountBalances(addrs)`, `accountBalanceHistory(addr)` |
+| `.finalization` | `FinalizationViewer` | `head()`, `headNumber()`, `headHash()`, `chainId()` |
+| `.mempool` | `MempoolViewer` | `pendingBlocks()`, `pendingTransactions()` |
+| `.stake` | `StakeViewer` | `stakeById(id)`, `stakesByStaker(addr)`, `stakesByStaked(addr)`, `activeStakes()` |
+| `.networkStake` | `NetworkStakeViewer` | Network-level staking queries |
+| `.step` | `StepViewer` | Step/epoch queries |
+| `.time` | `TimeSyncViewer` | Time synchronization queries |
+
+### Example: Read current block number
+
+```ts
+const viewer = defaultGateway?.connection.viewer
+if (!viewer) return // gateway not ready or no viewer attached
+
+const currentBlock = Number(await viewer.block.currentBlockNumber())
+```
+
+### Example: Look up a transaction by hash
+
+```ts
+const tx = await defaultGateway?.connection.viewer?.transaction.byHash(txHash)
+// tx: SignedHydratedTransactionWithHashMeta | null
+// tx[0] = TransactionBoundWitness, tx[1] = resolved payloads (including off-chain)
+```
+
+### Example: Check an account balance
+
+```ts
+const balance = await defaultGateway?.connection.viewer?.account.balance.accountBalance(address)
+// balance: AttoXL1
+```
+
+### Wire names vs TypeScript API
+
+The [Gateway reference](../xl1-knowledge/gateway.md) lists RPC methods by wire name (e.g., `blockViewer_currentBlockNumber`). Those strings are the JSON-RPC wire protocol — **not** a TypeScript API. Application code uses the typed sub-viewer path:
+
+| Wire name | TypeScript API |
+|-----------|---------------|
+| `blockViewer_currentBlockNumber` | `connection.viewer.block.currentBlockNumber()` |
+| `transactionViewer_byHash` | `connection.viewer.transaction.byHash(h)` |
+| `accountBalanceViewer_accountBalance` | `connection.viewer.account.balance.accountBalance(addr)` |
+| `finalizationViewer_headNumber` | `connection.viewer.finalization.headNumber()` |
+| `mempoolViewer_pendingTransactions` | `connection.viewer.mempool.pendingTransactions()` |
+
+`XyoGateway` and `XyoGatewayRunner` do not expose a `.call(method, params)` entry point. The wire names are internal to the JSON-RPC transport layer.
+
+---
+
+## Submitting Transactions
+
+Transaction methods exist only on `XyoGatewayRunner` (wallet-connected gateway). Always check capability first.
+
+### Adding application data to the chain
+
+```ts
+const { defaultGateway } = useProvidedGateway()
+
+if (defaultGateway && 'addPayloadsToChain' in defaultGateway) {
+  // onChain: AllowedBlockPayload[] — system types only
+  // offChain: Payload[] — application data of any schema
+  const [txHash, signedTx] = await defaultGateway.addPayloadsToChain([], appPayloads)
+}
+```
+
+This single call builds a `TransactionBoundWitness`, triggers the wallet popup for signing, and broadcasts to the network.
+
+### Token transfers
+
+```ts
+const txHash = await gateway.send(toAddress, amount)
+const txHash = await gateway.sendMany({ [addr1]: amount1, [addr2]: amount2 })
+```
+
+### Pre-built transactions
+
+```ts
+const [txHash, signedTx] = await gateway.addTransactionToChain(unsignedTx, offChainPayloads)
+```
+
+### Transaction confirmation
+
+```ts
+const confirmedTx = await gateway.confirmSubmittedTransaction(txHash)
+```
+
+---
+
+## Accessing the Datalake
+
+**The datalake is independent of the gateway.** The gateway RPC (`/rpc`) and the datalake (`/dataLake`) are separate services. Use standalone `RestDataLakeRunner` and `RestDataLakeViewer` from `@xyo-network/xl1-sdk` — do not look for a `.datalake` property on the gateway.
+
+> **Note:** `gateway.connection.storage` exists as a read-only `DataLakeViewer` when the connection is configured with a datalake endpoint. However, it is not the recommended path for dApp code — it is read-only, and it may not point to the datalake endpoint the dApp intends to use. Always create standalone datalake clients.
+
+### Creating a datalake runner (writes)
+
+```ts
+import { RestDataLakeRunner, type RestDataLakeRunnerParams } from '@xyo-network/xl1-sdk'
+import { getTestProviderContext } from '@xyo-network/xl1-protocol-sdk/test'
+
+const context = getTestProviderContext()
+const datalakeRunner = await RestDataLakeRunner.create({
+  context,
+  endpoint: 'https://api.archivist.xyo.network/dataLake',
+} satisfies RestDataLakeRunnerParams)
+
+await datalakeRunner.insert(payloads)
+```
+
+### Creating a datalake viewer (reads)
+
+```ts
+import { RestDataLakeViewer, type RestDataLakeViewerParams } from '@xyo-network/xl1-sdk'
+import { getTestProviderContext } from '@xyo-network/xl1-protocol-sdk/test'
+
+const context = getTestProviderContext()
+const datalakeViewer = await RestDataLakeViewer.create({
+  context,
+  endpoint: 'https://api.archivist.xyo.network/dataLake',
+  allowedSchemas: [MySchema],
+} satisfies RestDataLakeViewerParams)
+
+const results = await datalakeViewer.next()
+```
+
+### The `context` parameter
+
+Both `RestDataLakeRunner.create()` and `RestDataLakeViewer.create()` require a `context: CreatableProviderContext` parameter. Create it with `getTestProviderContext()` from `@xyo-network/xl1-protocol-sdk/test`:
+
+```ts
+import { getTestProviderContext } from '@xyo-network/xl1-protocol-sdk/test'
+
+const context = getTestProviderContext()
+```
+
+This is a sub-path import — an exception to the root barrel rule. `getTestProviderContext` is the current recommended way to create a provider context for standalone datalake clients in dApp code.
+
+### Datalake endpoints by network
+
+| Network | Datalake URL |
+|---------|-------------|
+| **Mainnet** | `https://api.archivist.xyo.network/dataLake` |
+| **Sequence** (beta) | `https://beta.api.archivist.xyo.network/dataLake` |
+| **Local** | `http://localhost:8080/dataLake` |
+
+### Why the datalake is independent
+
+The browser wallet and the dApp are independent datalake clients. The wallet writes to whatever datalake(s) it is configured for; the dApp writes to its own via `RestDataLakeRunner`. These may point to the same endpoint, different endpoints, or either side may have no datalake at all. See [Datalakes — Two Independent Datalake Clients](../xl1-knowledge/datalakes.md) for the full breakdown.
+
+---
+
+## Detecting Capabilities
+
+Check whether the gateway supports write operations before attempting transactions:
+
+```ts
+const { defaultGateway } = useProvidedGateway()
+
+const canSubmitToChain = defaultGateway && 'addPayloadsToChain' in defaultGateway
+const canRead = !!defaultGateway
+
+// Chain reads: work for all visitors (in-page gateway)
+// Datalake reads/writes: work for all visitors (dApp's own HTTP client)
+// Chain transactions: require wallet connection (XyoGatewayRunner)
+```
+
+---
+
+## Network Selection
+
+XL1 has three networks. The `gatewayName` prop on providers selects the network:
+
+| Network | `gatewayName` | When to use |
+|---------|--------------|-------------|
+| **Mainnet** | `MainNetwork.id` (`'mainnet'`) | Production — real XL1 tokens |
+| **Sequence** (beta) | `'sequence'` | Development and staging — live chain, no real tokens |
+| **Local** | `'local'` | Local development with `xl1 start api` |
+
+```tsx
+import { MainNetwork } from '@xyo-network/xl1-sdk'
+
+// Production
+<WalletGatewayProvider gatewayName={MainNetwork.id}>
+
+// Development
+<WalletGatewayProvider gatewayName="sequence">
+```
+
+Start with **Sequence** (beta) to test against a live chain, then switch to **Mainnet** for production.
+
+---
+
+## Anti-Patterns
+
+| Anti-Pattern | Why it fails | Do this instead |
+|---|---|---|
+| `gateway.call('blockViewer_currentBlockNumber', [])` | `XyoGateway` has no `.call()` method. Wire names are JSON-RPC transport internals. | `gateway.connection.viewer?.block.currentBlockNumber()` |
+| `gateway.datalake` or `gateway.dataLake` | Does not exist on the gateway object | Use standalone `RestDataLakeRunner`/`RestDataLakeViewer` |
+| `fetch('/rpc', { body: JSON.stringify({ method: '...' }) })` | Loses type safety, provenance, and transport abstraction | Use `connection.viewer` sub-viewers |
+| `gateway.connection.storage.insert(...)` | `connection.storage` is read-only (`DataLakeViewer`) and may not point to the dApp's desired endpoint | Use standalone `RestDataLakeRunner` |
+| Using `datalakeRunner` / `datalakeViewer` without creating them | These are not globals — they must be instantiated | See [Accessing the Datalake](#accessing-the-datalake) above |

@@ -78,8 +78,10 @@ Application data goes in the `offChain` parameter of `addPayloadsToChain`, but *
 ```ts
 import { PayloadBuilder } from '@xyo-network/sdk-js'
 import { RestDataLakeRunner, type RestDataLakeRunnerParams } from '@xyo-network/xl1-sdk'
+import { getTestProviderContext } from '@xyo-network/xl1-protocol-sdk/test'
 
-// TODO - where to get basic context?
+// See Gateway Usage — Accessing the Datalake for full setup details
+const context = getTestProviderContext()
 const datalakeRunner = await RestDataLakeRunner.create({
   context,
   endpoint: 'https://api.archivist.xyo.network/dataLake',
@@ -141,7 +143,9 @@ When you need to find all payloads of a given type regardless of which transacti
 
 ```ts
 import { RestDataLakeViewer, type RestDataLakeViewerParams } from '@xyo-network/xl1-sdk'
+import { getTestProviderContext } from '@xyo-network/xl1-protocol-sdk/test'
 
+const context = getTestProviderContext()
 const viewer = await RestDataLakeViewer.create({
   context,
   endpoint: 'https://api.archivist.xyo.network/dataLake',
@@ -265,8 +269,8 @@ function useChainData(schemas: Schema[], intervalMs = 5000) {
 
 | Decision | Guidance |
 |----------|----------|
-| Transaction context needed? | Use `transactionViewer_*` RPC methods — gives you signer addresses, block number, fees |
-| Just need payloads by type? | Use datalake schema filtering via `/chain` endpoint |
-| Need a specific payload? | Use `blockViewer_payloadsByHash` with the hash |
-| Real-time updates? | Poll `blockViewer_currentBlockNumber` on an interval |
-| Large result sets? | Use cursor-based pagination via `next()` on the datalake |
+| Transaction context needed? | Use `connection.viewer.transaction.*` — gives you signer addresses, block number, fees |
+| Just need payloads by type? | Use `RestDataLakeViewer` with `allowedSchemas` filtering |
+| Need a specific payload? | Use `connection.viewer.block.payloadsByHash(hashes)` |
+| Real-time updates? | Poll `connection.viewer.block.currentBlockNumber()` on an interval |
+| Large result sets? | Use cursor-based pagination via `next()` on the `RestDataLakeViewer` |
