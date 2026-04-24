@@ -32,3 +32,6 @@ Read when your React dApp needs read-only access to chain data without requiring
 
 ### [Commit-Reveal Prediction Markets](commit-reveal-prediction-markets.md)
 Read when building a game, prediction market, or any application with a stake-commit-reveal-settle lifecycle. This is a composite pattern that combines commit-reveal, chain data indexing, and in-page datalakes into a complete recipe.
+
+### [dApp Definition of Done](dapp-checklist.md)
+Read before shipping any XL1 dApp feature. A checklist that validates gateway usage, datalake setup, wallet integration, SDK-first compliance, payload design, provider architecture, display conventions, and commit-reveal correctness against the rules and anti-patterns defined across the skill stack.
