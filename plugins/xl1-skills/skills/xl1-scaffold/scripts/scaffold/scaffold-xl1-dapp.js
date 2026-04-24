@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Bootstraps an XL1 application — either a React + Vite dApp or a Node.js
+// Scaffolds an XL1 application — either a React + Vite dApp or a Node.js
 // service/CLI.
 //
 // Usage:
@@ -97,7 +97,7 @@ async function main() {
     const invocationCwd = process.env.INIT_CWD ?? process.cwd();
     const target = path.resolve(invocationCwd, targetArg);
     const templatesRoot = resolveTemplatesRoot(import.meta.url);
-    console.log(`Bootstrapping ${template.description} at: ${target}`);
+    console.log(`Scaffolding ${template.description} at: ${target}`);
     ensureTargetDir(target, force);
     const { dependencies, devDependencies, packageManager, } = await resolveVersionsForTemplate(template);
     writeJson(target, 'package.json', buildPackageJson({
@@ -118,7 +118,7 @@ async function main() {
     if (template.smokeTest) {
         runPnpmStep(target, `Running smoke test (pnpm ${template.smokeTest.pnpmScript})`, [template.smokeTest.pnpmScript]);
     }
-    console.log('\nBootstrap complete. Next:');
+    console.log('\nScaffold complete. Next:');
     console.log(`  cd ${targetArg}`);
     for (const step of template.nextSteps)
         console.log(`  ${step}`);
