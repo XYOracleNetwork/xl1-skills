@@ -126,6 +126,9 @@ jobs:
       - name: Build scaffold (mirrors into plugins/xl1-skills/bin/)
         run: corepack pnpm@10 -w run build
 
+      - name: Run scaffold tests
+        run: corepack pnpm@10 --filter @xyo-network/xl1-scaffold run test
+
       - name: Fail if scaffold runtime drifted from source
         run: |
           SYNC_PATH=plugins/xl1-skills/skills/xl1-scaffold/scripts/scaffold

@@ -39,8 +39,10 @@ if (existsSync(DEST)) rmSync(DEST, { recursive: true, force: true })
 mkdirSync(DEST, { recursive: true })
 
 // Copy filter: keep .js files (runtime), templates dir (raw files the CLI copies),
-// drop .d.ts, .d.ts.map, .js.map (not needed at runtime, just diff noise).
+// drop .d.ts, .d.ts.map, .js.map (not needed at runtime), and *.spec.* files
+// (tests aren't part of the runtime).
 const SKIP_SUFFIXES = ['.d.ts', '.d.ts.map', '.js.map']
+const SKIP_PATTERNS = [/\.spec\.[a-z]+(\.map)?$/]
 
 // tsc emits one .js per .ts even when the source is types-only. The result is
 // a `export {};` stub — useless at runtime and just noise in the synced tree.
@@ -52,6 +54,14 @@ function isTypesOnlyStub(srcPath) {
     .join('\n')
     .trim()
   return body === 'export {};'
+}
+
+// Test code (specs and helpers shared between specs) imports from vitest. None
+// of it should ship in the synced runtime. This catches *.spec.js by name AND
+// shared assertion files like shared-assertions.js without relying on naming.
+function importsTestRunner(srcPath) {
+  if (!srcPath.endsWith('.js')) return false
+  return /from ['"]vitest(\/[^'"]*)?['"]/.test(readFileSync(srcPath, 'utf8'))
 }
 
 function copyFiltered(src, dest) {
@@ -71,7 +81,9 @@ function copyFiltered(src, dest) {
       continue
     }
     if (SKIP_SUFFIXES.some(suffix => entry.name.endsWith(suffix))) continue
+    if (SKIP_PATTERNS.some(pattern => pattern.test(entry.name))) continue
     if (isTypesOnlyStub(srcPath)) continue
+    if (importsTestRunner(srcPath)) continue
     cpSync(srcPath, destPath)
   }
 }

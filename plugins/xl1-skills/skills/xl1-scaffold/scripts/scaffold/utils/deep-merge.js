@@ -10,6 +10,11 @@
 // (TemplateFile etc.) which serialize in stable key order. If a future field
 // holds objects with non-deterministic stringification, swap this for a
 // structural-equality check.
+// Stricter alternative to `Array.isArray` whose built-in narrowing widens to
+// `any[]`; the wrapped narrow keeps elements as `unknown`.
+function isUnknownArray(value) {
+    return Array.isArray(value);
+}
 function isPlainObject(value) {
     if (value === null || typeof value !== 'object')
         return false;
@@ -20,7 +25,7 @@ function dedupeKey(item) {
     return typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item);
 }
 export function deepMerge(base, override) {
-    if (Array.isArray(base) && Array.isArray(override)) {
+    if (isUnknownArray(base) && isUnknownArray(override)) {
         const seen = new Set();
         return [...base, ...override].filter((item) => {
             const key = dedupeKey(item);

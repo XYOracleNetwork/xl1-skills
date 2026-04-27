@@ -11,9 +11,15 @@
 // holds objects with non-deterministic stringification, swap this for a
 // structural-equality check.
 
+// Stricter alternative to `Array.isArray` whose built-in narrowing widens to
+// `any[]`; the wrapped narrow keeps elements as `unknown`.
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value)
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== 'object') return false
-  const proto = Object.getPrototypeOf(value)
+  const proto: object | null = Object.getPrototypeOf(value) as object | null
   return proto === Object.prototype || proto === null
 }
 
@@ -22,7 +28,7 @@ function dedupeKey(item: unknown): string {
 }
 
 export function deepMerge<T>(base: T, override: unknown): T {
-  if (Array.isArray(base) && Array.isArray(override)) {
+  if (isUnknownArray(base) && isUnknownArray(override)) {
     const seen = new Set<string>()
     return [...base, ...override].filter((item) => {
       const key = dedupeKey(item)
@@ -34,7 +40,7 @@ export function deepMerge<T>(base: T, override: unknown): T {
   if (isPlainObject(base) && isPlainObject(override)) {
     const out: Record<string, unknown> = { ...base }
     for (const key of Object.keys(override)) {
-      const baseVal = (base as Record<string, unknown>)[key]
+      const baseVal = base[key]
       out[key] = baseVal === undefined ? override[key] : deepMerge(baseVal, override[key])
     }
     return out as T

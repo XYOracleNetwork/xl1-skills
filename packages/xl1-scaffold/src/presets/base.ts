@@ -1,4 +1,5 @@
 import type { Template } from '../template.js'
+// eslint-disable-next-line import-x/no-internal-modules -- internal helper, intentional sibling reach
 import { deepMerge } from '../utils/deep-merge.js'
 
 type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T
@@ -23,11 +24,11 @@ export const baseTemplate: Template = {
     include: ['src'],
   },
   scripts: {
-    lint: 'eslint .',
+    'lint': 'eslint .',
     'lint:fix': 'eslint . --fix',
-    test: 'vitest run',
+    'test': 'vitest run',
     'test:watch': 'vitest',
-    typecheck: 'tsc --noEmit',
+    'typecheck': 'tsc --noEmit',
   },
   files: [{ src: '_gitignore', dest: '.gitignore' }],
   nextSteps: ['pnpm dev'],

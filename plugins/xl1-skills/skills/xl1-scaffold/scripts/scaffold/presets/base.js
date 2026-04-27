@@ -1,3 +1,4 @@
+// eslint-disable-next-line import-x/no-internal-modules -- internal helper, intentional sibling reach
 import { deepMerge } from '../utils/deep-merge.js';
 // Universal defaults shared by every concrete preset. Presets must NOT repeat
 // what's listed here — `extendBase`'s deep-merge concats arrays, so duplicates
@@ -19,11 +20,11 @@ export const baseTemplate = {
         include: ['src'],
     },
     scripts: {
-        lint: 'eslint .',
+        'lint': 'eslint .',
         'lint:fix': 'eslint . --fix',
-        test: 'vitest run',
+        'test': 'vitest run',
         'test:watch': 'vitest',
-        typecheck: 'tsc --noEmit',
+        'typecheck': 'tsc --noEmit',
     },
     files: [{ src: '_gitignore', dest: '.gitignore' }],
     nextSteps: ['pnpm dev'],
