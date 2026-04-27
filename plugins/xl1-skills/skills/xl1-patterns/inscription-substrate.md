@@ -346,6 +346,82 @@ Wrap the dApp in `InPageGatewaysProvider` + `GatewayProvider` ([In-Page Data Lak
 
 ---
 
+## Extension: Co-Witnessed Inscriptions
+
+The default inscription payload is a plain declarative `Payload` whose authorship is fully delegated to the wrapping `TransactionBoundWitness`. That covers single-author artifacts — NFTs, ordinary inscriptions, BRC-20-style operations. For artifacts that **need multiple parties to attest to the content itself**, the inscription payload can instead be a `BoundWitness` payload with multiple co-signers baked in.
+
+Use cases that warrant this:
+
+- **Bilateral agreements** — a contract clause inscribed on-chain where both parties co-sign the statement; "who paid gas" is a separate concern from "who agreed"
+- **Notarized artifacts** — an artifact co-signed by the creator and a notary, where the notary's signature is part of the artifact's identity
+- **Joint statements** — a press release, audit attestation, or governance vote inscribed as an artifact whose authority depends on the full signer set
+
+### Structure
+
+A co-witnessed inscription is a payload with `schema: 'network.xyo.boundwitness'` whose `payload_hashes[]` references the actual content payload (in turn stored in the datalake):
+
+```ts
+// Content payload — pure declarative
+const content = new PayloadBuilder({ schema: ContentSchema })
+  .fields({ contentType: 'application/json', content: '...' })
+  .build()
+
+// Inscription payload — a BoundWitness co-signed by multiple parties
+const inscription = await new BoundWitnessBuilder()
+  .signers([accountA, accountB, accountC])
+  .payloads([content])
+  .build()
+
+await datalakeRunner.insert([content, inscription[0]])
+await defaultGateway.addPayloadsToChain([], [content, inscription[0]])
+```
+
+The wrapping `TransactionBoundWitness` still has a single `from` (the gas payer); the *artifact's* signer set is `inscription.addresses[]`.
+
+### Indexer changes
+
+When registering a co-witnessed artifact, capture the full signer set, not just the gas payer:
+
+```ts
+type CoWitnessedArtifactRecord = ArtifactRecord & {
+  cosigners: Address[]   // all addresses on the inscription BoundWitness
+}
+
+function registerCoWitnessedArtifact(
+  state: IndexerState,
+  payload: BoundWitness,
+  gasPayer: Address,
+  blockHeight: XL1BlockNumber,
+) {
+  const id = payload._hash
+  if (state.artifacts.has(id)) return
+  state.artifacts.set(id, {
+    id,
+    creator: gasPayer,            // who paid to inscribe it
+    owner: gasPayer,              // initial owner — could be a different policy
+    payload,
+    inscribedAt: blockHeight,
+    cosigners: payload.addresses, // who attested to the content
+  })
+}
+```
+
+The `creator` / `owner` / `cosigners` distinction is intentional. The gas payer initiated the inscription, the cosigners attested to the content, and ownership starts at the gas payer but can transfer independently. Higher-layer protocols can require additional cosigner consent for transfers (e.g., "a notarized artifact can only be transferred if the notary co-signs the transfer event").
+
+### Tradeoffs
+
+| Concern | Plain payload (default) | BoundWitness payload (extension) |
+|---|---|---|
+| Multi-party attestation | No | Yes |
+| Content-addressed idempotency | Pure — same content collapses to same artifact | Polluted — different signer sets produce different hashes for the same content |
+| Storage cost | Small | Larger (BoundWitness wrapper + content) |
+| Indexer complexity | Single artifact apply | Discriminate by inscription payload shape, capture cosigners |
+| Fits "declarative content, structural authorship" | Cleanly | Tension — the BoundWitness payload *is* an artifact whose content includes its own signatories |
+
+Use the extension when multi-party attestation is the *point* of the artifact. For everything else — including BRC-20-style tokens — the plain payload form is right.
+
+---
+
 ## What This Pattern Enables
 
 The inscription substrate is general-purpose. Specific application protocols layer on top by defining additional event schemas under `network.xyo.ordinal.*` whose content carries application semantics:
