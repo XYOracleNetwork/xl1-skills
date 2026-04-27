@@ -1,23 +1,23 @@
 export interface TemplateFile {
-  src: string
   dest: string
+  src: string
 }
 
 export interface Template {
-  name: string
-  description: string
   deps: {
-    runtime: string[]
-    extras?: string[]
     dev: string[]
+    extras?: string[]
+    runtime: string[]
   }
+  description: string
+  files: TemplateFile[]
+  name: string
+  nextSteps: string[]
+  scripts: Record<string, string>
+  smokeTest?: { pnpmScript: string }
   tsconfig: {
-    extends: string
     compilerOptions?: Record<string, unknown>
+    extends: string
     include?: string[]
   }
-  scripts: Record<string, string>
-  files: TemplateFile[]
-  smokeTest?: { pnpmScript: string }
-  nextSteps: string[]
 }

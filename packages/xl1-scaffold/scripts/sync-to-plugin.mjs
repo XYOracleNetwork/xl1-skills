@@ -8,7 +8,7 @@
 // plugin tree is in sync via
 // `git diff --exit-code plugins/xl1-skills/skills/xl1-scaffold/scripts`.
 
-import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -42,6 +42,18 @@ mkdirSync(DEST, { recursive: true })
 // drop .d.ts, .d.ts.map, .js.map (not needed at runtime, just diff noise).
 const SKIP_SUFFIXES = ['.d.ts', '.d.ts.map', '.js.map']
 
+// tsc emits one .js per .ts even when the source is types-only. The result is
+// a `export {};` stub — useless at runtime and just noise in the synced tree.
+function isTypesOnlyStub(srcPath) {
+  if (!srcPath.endsWith('.js')) return false
+  const body = readFileSync(srcPath, 'utf8')
+    .split('\n')
+    .filter(line => !line.startsWith('//#'))   // drop sourceMappingURL comment
+    .join('\n')
+    .trim()
+  return body === 'export {};'
+}
+
 function copyFiltered(src, dest) {
   const entries = readdirSync(src, { withFileTypes: true })
   for (const entry of entries) {
@@ -59,6 +71,7 @@ function copyFiltered(src, dest) {
       continue
     }
     if (SKIP_SUFFIXES.some(suffix => entry.name.endsWith(suffix))) continue
+    if (isTypesOnlyStub(srcPath)) continue
     cpSync(srcPath, destPath)
   }
 }
