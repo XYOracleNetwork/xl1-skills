@@ -29,7 +29,7 @@ The first pattern in the layer to follow the protocol/client/service split. Read
 Conceptual rules for retrieving, filtering, and watching application-specific chain data — schemas, anchoring choices (Path A/B/C), `Destination as Protocol` (sentinel addresses), the four scan strategies, and finalized-vs-latest semantics. Environment-agnostic; both clients and services rely on it.
 
 #### [Chain Data Indexing — Client](chain-data-indexing-client.md)
-Browser-side consumption. The `useChainData` React hook for polled reads, capability detection in components, when to graduate from in-browser polling to a real service indexer.
+Browser-side reads — but **only for ephemeral, single-user, trivial cases**. The `useChainData` React hook for polled reads, capability detection in components, and a sharp boundary on what does and does not belong in the browser. Anything multi-user, durable, or reorg-sensitive needs the service file instead.
 
 #### [Chain Data Indexing — Service](chain-data-indexing-service.md)
 Long-running indexer service. Process model (sync/persist/serve loops), state persistence and atomic checkpoints, restart-resume semantics, exposing results via HTTP API, signer indexers, deployment shape (process supervision, single-instance, healthz, network from env).

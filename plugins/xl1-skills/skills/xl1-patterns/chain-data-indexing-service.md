@@ -100,6 +100,12 @@ On startup:
 
 If the checkpoint is corrupted or older than expected, replay from earlier — the determinism property makes this safe. Document the worst-case replay time in operations notes; it scales linearly with chain depth.
 
+### Direction: forward only for steady-state
+
+The sync loop iterates **forward** from `lastProcessedBlock + 1` to head. This is non-negotiable for state derivation — events apply in order. See [Chain Data Indexing — Protocol § Direction of Iteration](chain-data-indexing-protocol.md#direction-of-iteration) for the full reasoning.
+
+**Backfill from head as a pre-warm pattern.** When standing up a new indexer against a chain that already has history, walking forward from genesis is the canonical approach. A valid alternative is to backfill *downward* from a snapshot block toward genesis in the background while a separate forward sync handles new blocks. The two writes converge when the backfill reaches the snapshot point. This is only worth the complexity when the chain has enough history that genesis-forward bootstrap is unacceptable cold-start latency for a new deployment. Steady-state operation is always forward.
+
 ---
 
 ## Exposing Results

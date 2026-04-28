@@ -424,6 +424,25 @@ The `pollForNewData` function above is environment-agnostic — it takes a gatew
 
 ---
 
+## Direction of Iteration
+
+The XL1 chain is a singly-linked list at the protocol level — each block holds its parent's hash, not its children's. The gateway's `blockByNumber(n)` hides that with random-access by number, so both directions are equally cheap from the consumer's POV. **Pick direction by purpose, not by what the chain "naturally" allows.**
+
+Two regimes:
+
+| Direction | When | Why |
+|-----------|------|-----|
+| **Forward** (`lastProcessed + 1 → head`, or `0 → head` for cold bootstrap) | Global state derivation, event replay, ledger / ownership / balance computation | Events must apply in order. You cannot compute "the balance after this transfer" without first applying every prior transfer in deterministic order. |
+| **Backward** (`head → stop early`) | Recency-biased views — "my last N transactions," "10 most recent inscriptions," "recent activity feed," any UI that shows the latest matching things | You find what you need and stop. Walking forward from 0 to find the *latest* anything is wasteful and unbounded. |
+
+**Forward iteration is required for state derivation.** A global indexer that builds derived state ([Strategy 1](#strategy-1-global-block-walk-forward-iteration)) cannot replay events out of order without losing determinism. This is non-negotiable for ledger correctness.
+
+**Backward iteration is the right shape for recency-biased UIs.** A user staring at "show my last 10 moves" doesn't care about block 1 — they care about what just happened. Walk backward, accumulate matches, stop when you have N. The browser-side ephemeral case is overwhelmingly this shape.
+
+The four scan strategies below are tagged with their natural direction. Some are bidirectional in principle but most have a clearly correct choice.
+
+---
+
 ## Scan Strategies — Reading Indexed Data
 
 Once data is anchored on chain, indexers and consumers need to read it. Four strategies with very different cost and coverage profiles.
@@ -437,7 +456,9 @@ Once data is anchored on chain, indexers and consumers need to read it. Four str
 | Audit XL1 movements for an address (transfers in/out) | **Strategy 2** — `accountBalanceHistory` |
 | Free chain-native protocol-wide and per-user indexing without infrastructure | **Strategy 4** — Sentinel transfer (combines with Strategy 2) |
 
-### Strategy 1: Global block walk
+### Strategy 1: Global block walk (forward iteration)
+
+**Natural direction: forward.** Required — state derivation depends on in-order replay.
 
 The reference indexer pattern. Poll `viewer.finalization.headNumber()`, iterate every finalized block from `lastProcessed + 1` to head, dispatch each block's payloads through application handlers. Full coverage, deterministic state derivation across competing indexers. See [Inscription Substrate § Replay loop](inscription-substrate.md#replay-loop) for a worked example.
 
@@ -445,7 +466,9 @@ The reference indexer pattern. Poll `viewer.finalization.headNumber()`, iterate 
 
 **Cost.** Constant per-block work; storage scales with state, not with block count. The diviner this runs in is the protocol's reference implementation; competing implementations must agree on the same finalized stream.
 
-### Strategy 2: Address-scoped via balance history
+### Strategy 2: Address-scoped via balance history (typically backward)
+
+**Natural direction: backward** for recency-biased reads ("user's last N transfers"); forward (with a bounded `range`) for audit. The `range` parameter selects a block window; verify the return-order semantics against the current chain implementation if your code depends on it.
 
 Use `viewer.account.balance.accountBalanceHistory(address, { range })`. Returns hydrated `[block, tx, transfer]` tuples for every transaction containing a `Transfer` payload involving the address.
 
@@ -466,7 +489,9 @@ for (const [block, tx, transfer] of history ?? []) {
 - Indexing application protocols that intentionally ride alongside a Transfer (Strategy 4 — sentinel transfers)
 - Any case where the off-chain payload coexists with a Transfer for legitimate reasons (paid services, escrow, sentinel mark)
 
-### Strategy 3: Indexer-maintained per-address side-index
+### Strategy 3: Indexer-maintained per-address side-index (forward iteration)
+
+**Natural direction: forward.** Inherits from Strategy 1 — the side-index is built during the same forward replay. There is no separate iteration; the side-index is a byproduct of the global walk.
 
 Inside a global-walk indexer (Strategy 1), maintain a `Map<Address, ArtifactId[]>` (or analogous) as a side-index. Populate it as you replay events. Expose it as a query.
 
@@ -488,7 +513,9 @@ function applyOwnership(state: IndexerState, id: ArtifactId, owner: Address) {
 
 **Cost.** Maintained alongside the global walk — no extra block reads, just additional state. Storage scales with the side-index's cardinality (number of unique owners × average artifacts per owner).
 
-### Strategy 4: Sentinel transfer
+### Strategy 4: Sentinel transfer (typically backward)
+
+**Natural direction: backward.** Inherits from Strategy 2 — querying `accountBalanceHistory(SENTINEL)` over a recent range is the right shape for "show me recent activity in this protocol." Use a bounded forward range only when auditing a specific historical window.
 
 Inscribe a small `Transfer` alongside the application payload, with the destination set to a known sentinel address (see [Destination as Protocol](#destination-as-protocol--a-native-xl1-pattern)). This forces the transaction into `accountBalanceHistory` so Strategy 2 can scan for it — turning the chain's address-scoped APIs into a free indexer for the application protocol.
 
