@@ -10,7 +10,7 @@
 import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
 
-import { expressTemplate, nodeTemplate, reactTemplate } from './presets/index.js'
+import { nodeTemplate, reactTemplate, xl1ServiceTemplate } from './presets/index.js'
 import {
   expandWithPeers, resolveLatestPnpmByMajor, resolveVersions,
 } from './registry.js'
@@ -22,7 +22,7 @@ import {
 const TEMPLATES: Record<string, Template> = {
   react: reactTemplate,
   node: nodeTemplate,
-  express: expressTemplate,
+  'xl1-service': xl1ServiceTemplate,
 }
 
 // pnpm 11.0.0-rc.2 hits ERR_PNPM_MISSING_TIME on @eslint-react/* and

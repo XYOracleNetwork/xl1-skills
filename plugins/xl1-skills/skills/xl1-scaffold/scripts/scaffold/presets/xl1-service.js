@@ -1,10 +1,10 @@
 import { extend } from './base.js';
 import { nodeTemplate } from './node.js';
-const expressTemplateOverrides = {
-    name: 'express',
-    description: 'Node.js + Express HTTP server (extends node)',
+const xl1ServiceTemplateOverrides = {
+    name: 'xl1-service',
+    description: 'XL1 Node.js service with Express HTTP server (extends node)',
     deps: {
-        runtime: ['express'],
+        runtime: ['express', '@xyo-network/sdk-js', '@xyo-network/xl1-sdk'],
         dev: ['@types/express'],
         versions: { express: '^5' },
     },
@@ -17,10 +17,10 @@ const expressTemplateOverrides = {
     files: [
         // Overrides node's `src/index.ts` (the dedupe-by-dest in `extend()` keeps
         // the child entry). eslint.config.mjs and vitest.config.ts come straight
-        // from the inherited `node/...` entries — no copy needed in templates/express/.
-        { src: 'express/src/index.ts', dest: 'src/index.ts' },
+        // from the inherited `node/...` entries — no copy needed in templates/xl1-service/.
+        { src: 'xl1-service/src/index.ts', dest: 'src/index.ts' },
     ],
     smokeTest: { pnpmScript: 'smoke' },
 };
-export const expressTemplate = extend(nodeTemplate, expressTemplateOverrides);
-//# sourceMappingURL=express.js.map
+export const xl1ServiceTemplate = extend(nodeTemplate, xl1ServiceTemplateOverrides);
+//# sourceMappingURL=xl1-service.js.map
