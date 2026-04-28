@@ -160,6 +160,33 @@ Use `buildProviderLocator()` to wire up the standard provider dependency tree.
 
 ---
 
+## Node — Read-Only Gateway
+
+For backend services (chain walks, indexers, dashboards, CLIs) you construct the gateway directly instead of going through React context. Use `basicRemoteViewerLocator` from `@xyo-network/xl1-providers` to wire an `HttpRpcTransport`-backed locator, then resolve the gateway by moniker:
+
+```ts
+import { DefaultNetworks, NetworkDataLakeUrls } from '@xyo-network/xl1-network-model'
+import { XyoGatewayMoniker, type XyoGateway } from '@xyo-network/xl1-protocol-lib'
+import { basicRemoteViewerLocator } from '@xyo-network/xl1-providers'
+
+const id = 'sequence' // or 'mainnet' / 'local'
+const network = DefaultNetworks.find((n) => n.id === id)
+if (!network) throw new Error(`Unknown network "${id}"`)
+
+const locator = await basicRemoteViewerLocator(
+  id,
+  { rpc: { protocol: 'http', url: `${network.url}/rpc` } },
+  NetworkDataLakeUrls[id],
+)
+const gateway = await locator.getInstance<XyoGateway>(XyoGatewayMoniker)
+```
+
+**This is the read-only path.** It returns `XyoGateway`, not `XyoGatewayRunner` — no signer is wired in, so `addPayloadsToChain`, `send`, and `sendMany` are not available. All `connection.viewer.*` reads documented above work normally. For the write path (seed phrase / `HDWallet` / `Account` as an in-memory signer feeding an `XyoGatewayRunner`), see [Browser Wallet](wallet.md) for the browser flow — the Node write path is not yet documented here.
+
+Cache the resolved gateway across calls; `basicRemoteViewerLocator` does non-trivial async setup and you do not want to repeat it per request.
+
+---
+
 ## Running the Gateway
 
 ### Via CLI

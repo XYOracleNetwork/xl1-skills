@@ -1,5 +1,7 @@
 # Browser Wallet
 
+**Scope:** This skill covers the **Chrome extension** wallet and the React-side flow that drives it (PostMessage transport, `WalletGatewayProvider`, `ConnectAccountsStack`, etc.). For Node / server-side gateways, see [Gateway — Node Read-Only Gateway](gateway.md). Identity primitives that work in any environment (`Account.create({ mnemonic })`, `HDWallet.fromPhrase`) live in [Identity & Signing](../xyo-knowledge/identity.md).
+
 **Key npm packages:**
 - `@xyo-network/react-chain-client` — Gateway providers, wallet connection, and client hooks for React dApps
 - `@xyo-network/react-chain-transaction` — Transaction-specific components
