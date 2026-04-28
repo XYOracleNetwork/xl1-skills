@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repo serves three roles:
 
-1. **Claude Code plugin marketplace** — packages a 5-layer XL1/XYO skill stack as an installable plugin (`plugins/xl1-skills/`)
+1. **Claude Code plugin marketplace** — packages a 6-layer XL1/XYO skill stack as an installable plugin (`plugins/xl1-skills/`)
 2. **Scaffold tool** — `packages/xl1-scaffold/` scaffolds a new XL1 app (React dApp or Node service) with the correct dep graph, tsconfig, ESLint, and smoke test wired up
 3. **Evaluation test bed** — `src/` is where a rock-paper-scissors game gets built to test the skill stack's quality
 
@@ -18,11 +18,12 @@ This repo follows the Claude Code plugin marketplace pattern:
 
 - **`.claude-plugin/marketplace.json`** — marketplace manifest (registers all plugins)
 - **`plugins/xl1-skills/`** — the main plugin, with its own `.claude-plugin/plugin.json`
-- **`plugins/xl1-skills/skills/`** — 5 skill layers using progressive loading
+- **`plugins/xl1-skills/skills/`** — 6 skill layers using progressive loading
 
 Skills use progressive loading — each `SKILL.md` is a lightweight router that directs you to read sub-files on demand based on context. Layers cascade top-down:
 
 ```
+Layer 6: xl1-scaffold/     — Bootstrap new XL1 apps (React dApp or Node service)
 Layer 5: xl1-patterns/     — Prescriptive design patterns (commit-reveal, indexing, prediction markets)
 Layer 4: xl1-knowledge/    — XL1 chain, datalakes, gateway, wallet, dev patterns
 Layer 3: xyo-knowledge/    — XYO payloads, bound witnesses, modules, identity
@@ -35,6 +36,8 @@ When building application features on XL1, start with Layer 5's SKILL.md — it 
 ## Development
 
 **Package manager:** pnpm (enforced — never use npm or yarn in this repo)
+
+**Node version:** >=24 required. Volta pins Node 24.15.0 and pnpm 10.33.2. Use `corepack enable` if Volta isn't available.
 
 **Branching:** Gitflow with `develop` as the integration branch. Feature branches use `feature/<description>` off `develop`. Never rewrite git history (no amend, rebase, or force push).
 
@@ -70,6 +73,24 @@ pnpm -w run scaffold:dev src --template=node # skip build, run straight from TS 
 ```
 
 Once `src/` has a `package.json`, use its scripts (e.g. `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm dev`) from inside `src/` — never raw tool commands.
+
+**Common commands** (run from repo root):
+```shell
+pnpm -w run build             # build all packages (scaffold → plugin sync)
+pnpm -w run lint              # lint all packages
+pnpm -w run typecheck         # type-check all packages
+```
+
+**Scaffold package** (run from `packages/xl1-scaffold/`):
+```shell
+pnpm test                     # run tests (vitest)
+pnpm test:watch               # watch mode
+pnpm lint:fix                 # auto-fix lint issues
+```
+
+**Scaffold build chain:** `clean → tsc → copy-templates → sync-to-plugin` compiles TS, copies template files, and writes the runtime into `plugins/xl1-skills/skills/xl1-scaffold/scripts/scaffold/`. CI fails if committed source drifts from the synced runtime.
+
+**Editing skills:** After modifying any file under `plugins/xl1-skills/skills/`, run `/reload-plugins` in your Claude Code session — there is no file watcher.
 
 ## Key Conventions (from the skills)
 
