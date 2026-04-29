@@ -13,7 +13,11 @@ jobs:
     name: Require conventional title (feat/fix)
     runs-on: ubuntu-latest
     steps:
+      - name: Skip for release-please PRs
+        if: ${{ startsWith(github.event.pull_request.head.ref, 'release-please--') }}
+        run: echo "PR head is a release-please branch — skipping conventional-title check."
       - uses: amannn/action-semantic-pull-request@v5
+        if: ${{ !startsWith(github.event.pull_request.head.ref, 'release-please--') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
