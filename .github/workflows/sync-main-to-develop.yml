@@ -10,19 +10,36 @@ permissions:
 
 jobs:
   sync:
-    name: Open sync PR
+    name: Open and merge sync PR
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Open main → develop PR
+      - name: Open and merge main → develop sync PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.release.tag_name }}
+          BODY: |
+            Post-release sync. Brings the version bump and changelog from `main` back into `develop` so the branches stay aligned for the next release cycle.
+
+            Auto-created and auto-merged by `.github/workflows/sync-main-to-develop.yml` using the **merge-commit** method. Do not squash this PR — squashing breaks the ancestry link between `main` and `develop` and makes them drift over time.
         run: |
-          gh pr create \
+          set -euo pipefail
+
+          pr_url=$(gh pr create \
             --base develop \
             --head main \
             --title "chore: sync main → develop after ${TAG}" \
-            --body "Post-release sync. Brings the version bump and changelog from \`main\` back into \`develop\` so the branches stay aligned for the next release cycle." \
-            || echo "PR already exists or nothing to sync"
+            --body "$BODY") || pr_url=""
+
+          if [[ -z "$pr_url" || ! "$pr_url" =~ ^https:// ]]; then
+            pr_url=$(gh pr list --base develop --head main --state open --json url --jq '.[0].url // ""')
+          fi
+
+          if [[ -z "$pr_url" ]]; then
+            echo "Nothing to sync — develop already contains main."
+            exit 0
+          fi
+
+          echo "Merging $pr_url with merge-commit method..."
+          gh pr merge "$pr_url" --merge
