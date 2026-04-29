@@ -179,10 +179,10 @@ Or to be more specific
 
 Versioning is automated by [release-please](https://github.com/googleapis/release-please) on top of Gitflow:
 
-1. Use [conventional commit](https://www.conventionalcommits.org/) prefixes (`feat:`, `fix:`, `feat!:` for breaking, etc.) — release-please reads them to determine the bump and generate the changelog.
-2. PR `develop` → `main` and merge when ready to release.
+1. Use [conventional commit](https://www.conventionalcommits.org/) prefixes (`feat:`, `fix:`, `feat!:` for breaking, etc.) — release-please reads them to generate the `CHANGELOG.md`. Versioning is configured `always-bump-patch`, so any merge to `main` produces a release; the prefix only affects changelog content.
+2. PR `develop` → `main` with a `feat:` or `fix:` title (enforced by `lint-pr-title.yml`) and merge when ready to release.
 3. Release-please opens a Release PR against `main` with version bumps and a regenerated `CHANGELOG.md`. Review and merge it — the git tag and GitHub Release are created automatically.
-4. A `main → develop` sync PR is opened automatically; merge it to keep `develop` aligned for the next cycle.
+4. A `main → develop` sync PR is then opened **and auto-merged** with the merge-commit method, keeping `develop` aligned for the next cycle. No human action required.
 
 `plugins/xl1-skills/.claude-plugin/plugin.json` is the version source of truth. `.claude-plugin/marketplace.json` and `version.txt` are kept in lockstep automatically — don't edit them by hand.
 
