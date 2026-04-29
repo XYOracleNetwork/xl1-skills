@@ -1,7 +1,7 @@
 name: Lint PR Title
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, synchronize, reopened]
     branches: [main]
 
@@ -13,7 +13,11 @@ jobs:
     name: Require conventional title (feat/fix)
     runs-on: ubuntu-latest
     steps:
+      - name: Skip for release-please PRs
+        if: ${{ startsWith(github.event.pull_request.head.ref, 'release-please--') }}
+        run: echo "PR head is a release-please branch — skipping conventional-title check."
       - uses: amannn/action-semantic-pull-request@v5
+        if: ${{ !startsWith(github.event.pull_request.head.ref, 'release-please--') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -25,4 +29,3 @@ jobs:
           subjectPatternError: |
             The PR title subject must start with a letter and be at least
             two characters long. Example: `fix: roll up develop`.
-          wip: true
