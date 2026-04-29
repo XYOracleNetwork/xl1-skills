@@ -29,4 +29,3 @@ jobs:
           subjectPatternError: |
             The PR title subject must start with a letter and be at least
             two characters long. Example: `fix: roll up develop`.
-          wip: true
