@@ -4,10 +4,11 @@ Claude Code plugin marketplace for XL1 blockchain and XYO protocol development.
 
 ## What's Included
 
-Five skill layers that cascade top-down:
+Six skill layers that cascade top-down:
 
 | Layer | Skill | Covers |
 |-------|-------|--------|
+| 6 | `xl1-scaffold` | Bootstrap new XL1 apps (React dApp, Node service, monorepo) |
 | 5 | `xl1-patterns` | Commit-reveal, chain data indexing, in-page datalakes, prediction markets |
 | 4 | `xl1-knowledge` | XL1 chain, datalakes, gateway, browser wallet |
 | 3 | `xyo-knowledge` | XYO payloads, bound witnesses, modules, identity |
