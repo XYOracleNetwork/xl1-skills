@@ -37,4 +37,12 @@ describe('node preset specifics', () => {
   it('declares a smoke test that runs `pnpm start`', () => {
     expect(nodeTemplate.smokeTest).toEqual({ pnpmScript: 'start' })
   })
+
+  it('declares dotenv as a runtime dep', () => {
+    expect(nodeTemplate.deps.runtime).toContain('dotenv')
+  })
+
+  it('writes a .env.example for users to copy', () => {
+    expect(nodeTemplate.files.some(f => f.dest === '.env.example')).toBe(true)
+  })
 })

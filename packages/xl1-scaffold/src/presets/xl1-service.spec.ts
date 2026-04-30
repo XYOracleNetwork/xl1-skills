@@ -43,4 +43,13 @@ describe('xl1-service preset specifics', () => {
     expect(xl1ServiceTemplate.smokeTest).toEqual({ pnpmScript: 'smoke' })
     expect(xl1ServiceTemplate.scripts.smoke).toContain('--smoke-test')
   })
+
+  it('inherits dotenv from the node preset', () => {
+    expect(xl1ServiceTemplate.deps.runtime).toContain('dotenv')
+  })
+
+  it('overrides node\'s .env.example with a service-specific one', () => {
+    const envExample = xl1ServiceTemplate.files.find(f => f.dest === '.env.example')
+    expect(envExample?.src).toBe('xl1-service/_env.example')
+  })
 })
