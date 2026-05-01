@@ -4,10 +4,11 @@ Claude Code plugin marketplace for XL1 blockchain and XYO protocol development.
 
 ## What's Included
 
-Five skill layers that cascade top-down:
+Six skill layers that cascade top-down:
 
 | Layer | Skill | Covers |
 |-------|-------|--------|
+| 6 | `xl1-scaffold` | Bootstrap new XL1 apps (React dApp, Node service, monorepo) |
 | 5 | `xl1-patterns` | Commit-reveal, chain data indexing, in-page datalakes, prediction markets |
 | 4 | `xl1-knowledge` | XL1 chain, datalakes, gateway, browser wallet |
 | 3 | `xyo-knowledge` | XYO payloads, bound witnesses, modules, identity |
@@ -159,30 +160,14 @@ jq empty .claude-plugin/marketplace.json
 jq empty plugins/xl1-skills/.claude-plugin/plugin.json
 ```
 
-## Evaluation
-
-This repo doubles as a test bed for the skill stack. **Before running the prompts below, make sure the scaffold is built locally** (see [Building the Scaffold](#building-the-scaffold-required-for-the-xl1-scaffold-skill)) — the `xl1-scaffold` skill depends on it.
-
-Start a Claude Code session with the plugin loaded and paste this prompt to exercise all five layers:
-
-> Build me a two-player rock paper scissors game on XL1. Use commit-reveal so neither player can see the other's move before both have committed. Record moves and outcomes on-chain. Include a UI where anyone can browse past games and results without connecting a wallet, and connected players can start and play games.
-
-To test how your skill are picked up you can ask in a plan:
-
-> Make me a plan to build a two-player rock paper scissors game on XL1. Use commit-reveal so neither player can see the other's move before both have committed. Record moves and outcomes on-chain. Include a UI where anyone can browse past games and results without connecting a wallet, and connected players can start and play games.  Be sure the plan includes the relevant skills you will use and how you will use them
-
-Or to be more specific
-
-> Build me a two-player rock paper scissors game on XL1. Use commit-reveal so neither player can see the other's move before both have committed. Record moves and outcomes on-chain. Include a UI where anyone can browse past games and results without connecting a wallet, and connected players can start and play games.  Do all the blockchain indexing on the backend and use the front end to present current game state as well as game detection to players.
-
 ## Releases
 
 Versioning is automated by [release-please](https://github.com/googleapis/release-please) on top of Gitflow:
 
-1. Use [conventional commit](https://www.conventionalcommits.org/) prefixes (`feat:`, `fix:`, `feat!:` for breaking, etc.) — release-please reads them to determine the bump and generate the changelog.
-2. PR `develop` → `main` and merge when ready to release.
+1. Use [conventional commit](https://www.conventionalcommits.org/) prefixes (`feat:`, `fix:`, `feat!:` for breaking, etc.) — release-please reads them to generate the `CHANGELOG.md`. Versioning is configured `always-bump-patch`, so any merge to `main` produces a release; the prefix only affects changelog content.
+2. PR `develop` → `main` with a `feat:` or `fix:` title (enforced by `lint-pr-title.yml`) and merge when ready to release.
 3. Release-please opens a Release PR against `main` with version bumps and a regenerated `CHANGELOG.md`. Review and merge it — the git tag and GitHub Release are created automatically.
-4. A `main → develop` sync PR is opened automatically; merge it to keep `develop` aligned for the next cycle.
+4. A `main → develop` sync PR is then opened **and auto-merged** with the merge-commit method, keeping `develop` aligned for the next cycle. No human action required.
 
 `plugins/xl1-skills/.claude-plugin/plugin.json` is the version source of truth. `.claude-plugin/marketplace.json` and `version.txt` are kept in lockstep automatically — don't edit them by hand.
 

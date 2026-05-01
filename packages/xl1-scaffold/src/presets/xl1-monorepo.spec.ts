@@ -32,4 +32,8 @@ describe('xl1-monorepo preset specifics', () => {
   it('has no runtime deps at the root', () => {
     expect(xl1MonorepoTemplate.deps.runtime).toEqual([])
   })
+
+  it('writes a workspace-level .env.example', () => {
+    expect(xl1MonorepoTemplate.files.some(f => f.dest === '.env.example')).toBe(true)
+  })
 })

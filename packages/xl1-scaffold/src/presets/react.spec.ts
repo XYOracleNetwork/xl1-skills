@@ -32,4 +32,12 @@ describe('react preset specifics', () => {
   it('runs `vite build` from the build script', () => {
     expect(reactTemplate.scripts.build).toContain('vite build')
   })
+
+  it('writes a .env.example for users to copy (Vite reads .env natively)', () => {
+    expect(reactTemplate.files.some(f => f.dest === '.env.example')).toBe(true)
+  })
+
+  it('does NOT pull in the dotenv package (Vite handles env loading)', () => {
+    expect(reactTemplate.deps.runtime).not.toContain('dotenv')
+  })
 })

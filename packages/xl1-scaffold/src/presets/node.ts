@@ -5,7 +5,7 @@ const nodeTemplateOverrides: Override = {
   name: 'node',
   description: 'Node.js + TypeScript XL1 service/CLI',
   deps: {
-    runtime: ['@xyo-network/sdk-js', '@xyo-network/xl1-sdk'],
+    runtime: ['@xyo-network/sdk-js', '@xyo-network/xl1-sdk', 'dotenv'],
     dev: ['@xylabs/eslint-config-flat', '@types/node', 'tsx'],
   },
   tsconfig: {
@@ -23,6 +23,7 @@ const nodeTemplateOverrides: Override = {
   files: [
     { src: 'node/eslint.config.mjs', dest: 'eslint.config.mjs' },
     { src: 'node/vitest.config.ts', dest: 'vitest.config.ts' },
+    { src: 'node/_env.example', dest: '.env.example' },
     { src: 'node/src/index.ts', dest: 'src/index.ts' },
   ],
   smokeTest: { pnpmScript: 'start' },
