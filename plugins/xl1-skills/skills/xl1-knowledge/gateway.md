@@ -54,14 +54,14 @@ For dApp development, start with **Sequence** (beta) to test against a live chai
 The construction step is environment-specific. Pick the file that matches your runtime:
 
 - **Browser / React dApp** — wrap the app in `WalletGatewayProvider` or `GatewayProvider` + `InPageGatewaysProvider`, then call `useProvidedGateway()` in components. See [Browser Gateway](gateway-browser.md).
-- **Node / server-side** — call `basicRemoteViewerLocator` and resolve `XyoGatewayMoniker`. See [Node Gateway](gateway-node.md).
+- **Node / server-side / headless** — use `GatewayBuilder` from `@xyo-network/xl1-sdk`. `.build()` for read-only, `.build(signer)` for write-capable. See [Node Gateway](gateway-node.md).
 - **Tests** — use `MemoryRpcTransport` (see [Transports](#transports) below).
 
-The variable named `gateway` in the recipes below stands for whatever you got back from your environment's construction. In React it is typically `defaultGateway` from `useProvidedGateway()`; in Node it is the result of `locator.getInstance<XyoGateway>(XyoGatewayMoniker)`. Both expose the same method surface.
+The variable named `gateway` in the recipes below stands for whatever you got back from your environment's construction. In React it is typically `defaultGateway` from `useProvidedGateway()`; in Node it is the result of `new GatewayBuilder().rpcUrl(...).build()` (or `.build(signer)`). Both expose the same method surface.
 
 The type is a union:
-- **`XyoGatewayRunner`** — write-capable (has `addPayloadsToChain`, `send`, etc.). Available when a wallet is connected (browser) or a signer is wired in (Node, when documented).
-- **`XyoGateway`** — read-only (has `connection.viewer` but no write methods). Available from the in-page gateway (browser) or `basicRemoteViewerLocator` (Node).
+- **`XyoGatewayRunner`** — write-capable (has `addPayloadsToChain`, `send`, etc.). Available when a wallet is connected (browser) or a signer is wired in (Node, via `GatewayBuilder.build(signer)`).
+- **`XyoGateway`** — read-only (has `connection.viewer` but no write methods). Available from the in-page gateway (browser) or `GatewayBuilder.build()` (Node).
 - **`undefined` / `null`** — loading or no gateway available (React context only).
 
 ---
@@ -271,6 +271,8 @@ The wallet and dApp are independent datalake clients — they may point to diffe
 | `PostMessageRpcTransport` | Browser — cross-window communication (wallet ↔ dApp) |
 | `MemoryRpcTransport` | Testing — in-memory JSON-RPC engine |
 
+Most consumers never instantiate transports directly. In the browser, the React providers select the transport based on whether a wallet is present. In Node, `GatewayBuilder` selects between HTTP and PostMessage based on whether you call `.rpcUrl()` or `.postMessage()`.
+
 ---
 
 ## Providers
@@ -281,7 +283,7 @@ The wallet and dApp are independent datalake clients — they may point to diffe
 - **Node provider** — for backend services, uses HTTP transport. See [Node Gateway](gateway-node.md).
 - **Neutral provider** — platform-agnostic primitives shared by both.
 
-The construction helpers (`basicRemoteViewerLocator`, `buildProviderLocator`, the React provider components) live with their respective environment-specific files.
+The construction helpers (`GatewayBuilder` and `basicRemoteViewerLocator` for Node, `buildProviderLocator`, the React provider components for browser) live with their respective environment-specific files.
 
 ---
 
