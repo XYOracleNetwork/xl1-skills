@@ -6,9 +6,9 @@ How to run a chain data indexer as a long-lived service: process model, state pe
 
 **Builds on:**
 - [Chain Data Indexing — Protocol](chain-data-indexing-protocol.md) — conceptual rules (finalized vs latest, scan strategies, schemas)
-- [Node Gateway](../xl1-knowledge/gateway-node.md) — server-side gateway construction
+- [Node Gateway](../xl1-knowledge/gateway-node.md) — server-side gateway construction (`GatewayBuilder` + `buildSimpleXyoSignerV2`)
 - [Datalakes](../xl1-knowledge/datalakes.md) — what the indexer actually reads through the gateway viewer
-- [Identity & Signing](../xyo-knowledge/identity.md) — key primitives for signer indexers
+- [XL1 Identity & Wallets](../xl1-knowledge/identity.md) — canonical backend identity for signer indexers (`generateXyoBaseWalletFromPhrase` + `derivePath('<index>')`); the lower-level [Identity & Signing](../xyo-knowledge/identity.md) is for XYO primitives only
 
 ---
 
@@ -175,6 +175,6 @@ The indexer is then both a *reader* (deriving state from the chain) and a *write
 - [Chain Data Indexing — Protocol](chain-data-indexing-protocol.md) — conceptual rules (scan strategies, schema design, anchoring choices)
 - [Chain Data Indexing — Client](chain-data-indexing-client.md) — browser-side consumption of indexer output
 - [Inscription Substrate — Replay loop](inscription-substrate.md#replay-loop) — worked example of a global-walk indexer
-- [Node Gateway](../xl1-knowledge/gateway-node.md) — server-side gateway construction
+- [Node Gateway](../xl1-knowledge/gateway-node.md) — server-side gateway construction (`GatewayBuilder` + `buildSimpleXyoSignerV2`)
 - [Datalakes](../xl1-knowledge/datalakes.md) — datalake reads through the gateway viewer
-- [Identity & Signing](../xyo-knowledge/identity.md) — key primitives if the indexer also signs
+- [XL1 Identity & Wallets](../xl1-knowledge/identity.md) — canonical backend identity if the indexer also signs; [Identity & Signing](../xyo-knowledge/identity.md) covers the lower-level XYO primitives
