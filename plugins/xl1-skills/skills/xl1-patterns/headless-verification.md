@@ -11,7 +11,7 @@ Read this pattern when you need to prove that a dApp's chain interactions work e
 
 ## The Ethos
 
-A dApp's UX may live in the browser — wallet popups, React components, gateway providers — but its **on-chain behaviour does not depend on any of that**. The chain doesn't care whether a transaction was signed by the Chrome extension or by a Node process holding the same seed. Both paths submit the same `TransactionBoundWitness` to the same gateway RPC.
+A dApp's UX may live in the browser — wallet popups, React components, gateway providers — but its **on-chain behavior does not depend on any of that**. The chain doesn't care whether a transaction was signed by the Chrome extension or by a Node process holding the same seed. Both paths submit the same `TransactionBoundWitness` to the same gateway RPC.
 
 That symmetry is the verification surface:
 
@@ -34,7 +34,7 @@ The pattern complements browser testing — it does not replace user-facing UX v
 
 ## Prompt Shape
 
-Agents recognise this pattern from prompts of the form:
+Agents recognize this pattern from prompts of the form:
 
 > Given the `.env` file in this empty repository which holds a seed phrase for a wallet with Sequence XL1 in accounts 0 and 1, build me a [dApp] …
 
