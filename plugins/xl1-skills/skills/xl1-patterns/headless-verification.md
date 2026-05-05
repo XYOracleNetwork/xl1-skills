@@ -4,7 +4,7 @@ Read this pattern when you need to prove that a dApp's chain interactions work e
 
 **Builds on:**
 - [Node Gateway](../xl1-knowledge/gateway-node.md) — `GatewayBuilder` and the seed-phrase signer
-- [XL1 Identity & Wallets](../xl1-knowledge/identity.md) — canonical `generateXyoBaseWalletFromPhrase` + `DEFAULT_WALLET_PATH` derivation
+- [XL1 Identity & Wallets](../xl1-knowledge/identity.md) — canonical `generateXyoBaseWalletFromPhrase` + `derivePath('<index>')` derivation, then `buildSimpleXyoSignerV2` to produce a runner-compatible signer
 - [Gateway](../xl1-knowledge/gateway.md) — viewer API, transaction methods, capability detection
 
 ---
@@ -60,15 +60,17 @@ XL1_SEED_PHRASE="word1 word2 ... word12"
 
 Treat the seed phrase like any other secret — never commit, never log, never echo. Load with `dotenv/config` at the very top of the script.
 
-### 2. Derive signers from the seed
+### 2. Derive accounts and wrap them as signers
+
+`GatewayBuilder.build(signer)` requires an `XyoSigner`. The seed-phrase derivation produces an `AccountInstance` per index — wrap each one with `buildSimpleXyoSignerV2` to get a signer the runner accepts.
 
 ```ts
 import 'dotenv/config'
 
 import {
-  DEFAULT_WALLET_PATH, DefaultNetworks, GatewayBuilder,
-  generateXyoBaseWalletFromPhrase, NetworkDataLakeUrls,
+  buildSimpleXyoSignerV2, DefaultNetworks, GatewayBuilder, NetworkDataLakeUrls,
 } from '@xyo-network/xl1-sdk'
+import { ConfigZod, generateXyoBaseWalletFromPhrase } from '@xyo-network/xl1-protocol-sdk'
 import { type XyoGatewayRunner } from '@xyo-network/xl1-protocol-lib'
 
 const id = process.env.XL1_NETWORK ?? 'sequence'
@@ -76,14 +78,18 @@ const network = DefaultNetworks.find((n) => n.id === id)
 if (!network) throw new Error(`Unknown network "${id}"`)
 
 const baseWallet = await generateXyoBaseWalletFromPhrase(process.env.XL1_SEED_PHRASE!)
+const context = { config: ConfigZod.parse({}), caches: {}, singletons: {} }
 
-// Account 0 — primary actor
-const player1 = await baseWallet.derivePath(DEFAULT_WALLET_PATH)
+// Account 0 — primary actor (m/44'/60'/0'/0/0)
+const player1Account = await baseWallet.derivePath('0')
+const player1Signer = await buildSimpleXyoSignerV2(context, player1Account)
+
 // Account 1 — counterparty (m/44'/60'/0'/0/1)
-const player2 = await baseWallet.derivePath("m/44'/60'/0'/0/1")
+const player2Account = await baseWallet.derivePath('1')
+const player2Signer = await buildSimpleXyoSignerV2(context, player2Account)
 ```
 
-These addresses match what MetaMask and the XYO browser extension show for accounts 1 and 2 on the same seed. That alignment is the whole point — the headless run is provably the same identity a browser user would hold.
+`derivePath` takes a *bare account index string* relative to the base wallet's path — `generateXyoBaseWalletFromPhrase` has already applied `DEFAULT_WALLET_PATH` (`m/44'/60'/0'/0`) internally. These addresses match what MetaMask and the XYO browser extension show for accounts 1 and 2 on the same seed. That alignment is the whole point — the headless run is provably the same identity a browser user would hold.
 
 ### 3. Build a runner per signer
 
@@ -94,16 +100,16 @@ const runner1: XyoGatewayRunner = await new GatewayBuilder()
   .name(`${id}-player1`)
   .rpcUrl(`${network.url}/rpc`)
   .dataLakeEndpoint(NetworkDataLakeUrls[id])
-  .build(player1)
+  .build(player1Signer)
 
 const runner2: XyoGatewayRunner = await new GatewayBuilder()
   .name(`${id}-player2`)
   .rpcUrl(`${network.url}/rpc`)
   .dataLakeEndpoint(NetworkDataLakeUrls[id])
-  .build(player2)
+  .build(player2Signer)
 ```
 
-Use distinct `.name()` values so logs and traces can tell the actors apart.
+Use distinct `.name()` values so logs and traces can tell the actors apart. The same `context` object can be reused across `buildSimpleXyoSignerV2` calls — it carries no per-account state.
 
 ---
 
@@ -112,16 +118,19 @@ Use distinct `.name()` values so logs and traces can tell the actors apart.
 A headless verification script is a deterministic happy-path replay of one user flow. Keep it linear and explicit — assertions over abstractions.
 
 ```ts
+import type { BrandedHash } from '@xylabs/sdk-js'
+
 // 1. Pre-flight: confirm both accounts have balance
-const balance1 = await runner1.connection.viewer?.account.balance.accountBalance(await player1.address())
+const balance1 = await runner1.connection.viewer?.account.balance.accountBalance(player1Account.address)
 if (!balance1 || balance1 === 0n) throw new Error('player1 has no XL1 — fund the account first')
 
 // 2. Submit the dApp's actual on-chain action through the same code path the UI uses.
 //    Import the dApp's domain functions — do not rebuild logic in the script.
-const [txHash] = await submitMove(runner1, { game: 'rps', choice: 'rock', salt })
+const [txHash] = await submitMove(runner1, { game: 'rps', choice: 'rock', salt }) as [BrandedHash, unknown]
 
-// 3. Wait for inclusion
-const confirmed = await runner1.confirmSubmittedTransaction(txHash)
+// 3. Wait for inclusion. The default poll budget can time out before Sequence finalizes;
+//    pass explicit options when the network's block cadence is slower than local devnet.
+const confirmed = await runner1.confirmSubmittedTransaction(txHash, { attempts: 30, delay: 10_000 })
 
 // 4. Read back through the viewer to verify shape
 const tx = await runner1.connection.viewer?.transaction.byHash(txHash)
@@ -130,17 +139,19 @@ if (!tx) throw new Error('transaction not found after confirmation')
 // 5. If the flow is multi-party, drive the counterparty through runner2 and assert outcome
 ```
 
-**Import the dApp's own functions.** A verification script that re-implements payload construction or transaction submission proves nothing — it only proves the script works. The script is valuable because it exercises *the same code* the UI calls. Domain functions (`submitMove`, `revealMove`, `settleGame`, etc.) should accept a runner as a parameter so they work in both contexts.
+`runner.addPayloadsToChain` returns `[BrandedHash, SignedHydratedTransactionWithHashMeta]`. Use the `BrandedHash` type from `@xylabs/sdk-js` for the txHash variable so downstream `viewer.transaction.byHash` calls type-check.
+
+**Import the dApp's own functions.** A verification script that re-implements payload construction or transaction submission proves nothing — it only proves the script works. The script is valuable because it exercises *the same code* the UI calls. Domain functions (`submitMove`, `revealMove`, `settleGame`, etc.) should accept a runner as a parameter so they work in both contexts. Use `asSchema('your.app.schema', true)` from `@xyo-network/sdk-js` when constructing payload schemas — raw string literals bypass the schema validator.
 
 ---
 
 ## Cross-Environment Identity Guarantee
 
-Because the script derives via `generateXyoBaseWalletFromPhrase` + `DEFAULT_WALLET_PATH` (and sibling indices), the signing identity is bit-for-bit the identity a browser user would have after importing the same seed into the XYO Chrome wallet or MetaMask. Implications:
+Because the script derives via `generateXyoBaseWalletFromPhrase` + `derivePath('<index>')` (and wraps with `buildSimpleXyoSignerV2`), the signing identity is bit-for-bit the identity a browser user would have after importing the same seed into the XYO Chrome wallet or MetaMask. After construction, `await runner.signer.address()` will equal `account.address` — that equality is the contract being verified. Implications:
 
 - A developer can fund the seed in MetaMask, then a CI script using the same seed can submit transactions from those funded accounts. No address mismatch, no separate funding step.
 - An agent can set up the seed once in `.env`, exercise the dApp headlessly, then hand the seed to a human reviewer who imports it into the browser wallet and continues from the same state.
-- Multi-account flows derived in the script (`m/44'/60'/0'/0/1`, `…/0/2`, …) match accounts 2, 3, … in MetaMask on the same seed.
+- Multi-account flows derived in the script (`derivePath('1')`, `derivePath('2')`, …) match accounts 2, 3, … in MetaMask on the same seed.
 
 If addresses do not line up, the script bypassed the canonical helpers — the failure is in the script, not the chain. See [Identity & Wallets — Anti-Patterns](../xl1-knowledge/identity.md#anti-patterns).
 
@@ -151,12 +162,15 @@ If addresses do not line up, the script bypassed the canonical helpers — the f
 | Anti-Pattern | Why it fails | Do this instead |
 |---|---|---|
 | Re-implementing transaction logic inside the verification script | Verifies the script, not the dApp — false confidence | Import the dApp's domain functions; pass the runner in |
-| `Account.create({ mnemonic })` for the headless signer | Produces an address that won't match MetaMask / XYO extension on the same seed | Use `generateXyoBaseWalletFromPhrase` + `derivePath` |
+| `Account.create({ mnemonic })` for the headless signer | Produces an address that won't match MetaMask / XYO extension on the same seed | Use `generateXyoBaseWalletFromPhrase` + `derivePath('<index>')` + `buildSimpleXyoSignerV2` |
+| Passing `DEFAULT_WALLET_PATH` (or any full BIP44 path string) to `derivePath()` | `generateXyoBaseWalletFromPhrase` already roots the wallet at that path; passing it again double-derives | Pass a bare account index string: `'0'`, `'1'`, `'2'`, … |
+| Passing the `AccountInstance` from `derivePath()` directly to `.build(signer)` | `AccountInstance` is not an `XyoSigner` — the call will fail or produce a runner that can't sign | Wrap with `buildSimpleXyoSignerV2(context, account)` first |
 | Generating a fresh random wallet at script start | Identity changes every run; impossible to fund or reproduce | Load seed from `.env` and derive deterministically |
 | Logging or committing the seed phrase | Catastrophic if the repo or CI logs are exposed | Treat the seed like any other secret; load via `dotenv/config`; never `console.log` |
 | Building one runner and pretending it represents both parties | Multi-party flows (commit-reveal, atomic exchange) need distinct signers to be meaningful | Derive each party from a different index; build a runner per signer |
 | Skipping the read-back step after submission | Confirms the chain accepted the tx, not that the data is queryable as the UI expects | Always round-trip via `connection.viewer` to assert the shape the UI will read |
 | Pointing the script at `mainnet` for routine verification | Real funds, real chain pressure | Default to `sequence` in `.env`; require an explicit override for mainnet runs |
+| Calling `confirmSubmittedTransaction(txHash)` with no options on Sequence | Default poll budget can time out before block inclusion | Pass `{ attempts: 30, delay: 10_000 }` (or tune for your network's cadence) |
 
 ---
 

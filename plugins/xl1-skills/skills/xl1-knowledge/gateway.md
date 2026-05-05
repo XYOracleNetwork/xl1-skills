@@ -226,6 +226,15 @@ const [txHash, signedTx] = await gateway.addTransactionToChain(unsignedTx, offCh
 const confirmedTx = await gateway.confirmSubmittedTransaction(txHash)
 ```
 
+`confirmSubmittedTransaction` polls the gateway until the transaction is included in a block. The default poll budget can time out before Sequence (or any congested network) finalizes — pass explicit `attempts` and `delay` options when you know the network's block cadence:
+
+```ts
+// poll up to 30 times, 10s apart — ~5 minutes total
+await gateway.confirmSubmittedTransaction(txHash, { attempts: 30, delay: 10_000 })
+```
+
+For headless verification scripts and CI flows where a slow confirm is fine, the 30 × 10s budget is a safe starting point on Sequence. Tune downward for local devnets, upward for archival jobs that can wait.
+
 ---
 
 ## Detecting Capabilities

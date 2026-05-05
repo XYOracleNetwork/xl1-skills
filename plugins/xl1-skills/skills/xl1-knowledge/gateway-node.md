@@ -5,7 +5,8 @@ How to construct an XL1 gateway in a non-browser environment — backend service
 **Scope:** environment-specific *construction*. Once you have a gateway, the chain reads, transaction methods, and datalake access work the same as in any other environment — see [Gateway](gateway.md) for the API surface and cross-environment recipes.
 
 **Key npm packages:**
-- `@xyo-network/xl1-sdk` — root barrel; re-exports `GatewayBuilder`, `DefaultNetworks`, `NetworkDataLakeUrls`, `generateXyoBaseWalletFromPhrase`, `DEFAULT_WALLET_PATH`
+- `@xyo-network/xl1-sdk` — root barrel; re-exports `GatewayBuilder`, `buildSimpleXyoSignerV2`, `DefaultNetworks`, `NetworkDataLakeUrls`
+- `@xyo-network/xl1-protocol-sdk` — `ConfigZod`, `generateXyoBaseWalletFromPhrase` (also surfaced through the root barrel; the deeper path is the verified-working import)
 - `@xyo-network/xl1-protocol-lib` — `XyoGatewayMoniker`, gateway types (only needed if you drop down to the locator)
 - `@xyo-network/xl1-providers` — `basicRemoteViewerLocator` (escape hatch only)
 
@@ -43,13 +44,13 @@ This is the right path for: chain walks, indexers, archival jobs, dashboards, ET
 
 ### Write-capable gateway (runner)
 
-Pass a signer derived through the canonical seed-phrase pattern from [Identity & Wallets](identity.md). The signer must implement `XyoSigner`; the wallet returned by `derivePath(DEFAULT_WALLET_PATH)` does.
+`GatewayBuilder.build(signer)` requires an `XyoSigner`. The seed-phrase derivation from [Identity & Wallets](identity.md) returns an `AccountInstance` — wrap it via `buildSimpleXyoSignerV2` to produce the signer the runner needs.
 
 ```ts
 import {
-  DEFAULT_WALLET_PATH, DefaultNetworks, GatewayBuilder,
-  generateXyoBaseWalletFromPhrase, NetworkDataLakeUrls,
+  buildSimpleXyoSignerV2, DefaultNetworks, GatewayBuilder, NetworkDataLakeUrls,
 } from '@xyo-network/xl1-sdk'
+import { ConfigZod, generateXyoBaseWalletFromPhrase } from '@xyo-network/xl1-protocol-sdk'
 import { type XyoGatewayRunner } from '@xyo-network/xl1-protocol-lib'
 
 const id = 'sequence'
@@ -57,7 +58,12 @@ const network = DefaultNetworks.find((n) => n.id === id)
 if (!network) throw new Error(`Unknown network "${id}"`)
 
 const baseWallet = await generateXyoBaseWalletFromPhrase(process.env.SEED_PHRASE!)
-const signer = await baseWallet.derivePath(DEFAULT_WALLET_PATH)
+const account = await baseWallet.derivePath('0')
+
+const signer = await buildSimpleXyoSignerV2(
+  { config: ConfigZod.parse({}), caches: {}, singletons: {} },
+  account,
+)
 
 const runner: XyoGatewayRunner = await new GatewayBuilder()
   .name(id)
@@ -68,7 +74,9 @@ const runner: XyoGatewayRunner = await new GatewayBuilder()
 
 The result is a full `XyoGatewayRunner` — `addPayloadsToChain`, `send`, `sendMany`, and `confirmSubmittedTransaction` are all available. See [Gateway — Submitting Transactions](gateway.md#submitting-transactions) for the call surface.
 
-**Always derive through `generateXyoBaseWalletFromPhrase` + `DEFAULT_WALLET_PATH`.** This is the same path MetaMask and the XYO browser extension use, so a single seed phrase produces the same address across every environment. If you bypass these helpers, addresses will not line up across browser and headless contexts. See [Identity & Wallets](identity.md) for the full rationale.
+**Always derive through `generateXyoBaseWalletFromPhrase` + `derivePath('<index>')`** before wrapping with `buildSimpleXyoSignerV2`. This is the same derivation path MetaMask and the XYO browser extension use, so a single seed phrase produces the same address across every environment. `runner.signer.address()` will match `account.address` and the address an end user sees in their wallet on the same seed. If you bypass these helpers, addresses will not line up across browser and headless contexts. See [Identity & Wallets](identity.md) for the full rationale.
+
+**Why `buildSimpleXyoSignerV2`?** `GatewayBuilder` accepts any `XyoSigner` implementation. `buildSimpleXyoSignerV2` is the canonical adapter from `AccountInstance` (what the seed-phrase helpers return) to `XyoSigner` — it builds a `SimpleXyoSigner` through a `ProviderFactoryLocator` so the signer participates in the same provider graph the runner uses. The `{ config, caches, singletons }` argument is the minimum `BaseConfigContext` the locator needs; `ConfigZod.parse({})` produces the empty defaults.
 
 ### Builder reference
 
@@ -101,7 +109,11 @@ export function getGateway(): Promise<XyoGatewayRunner> {
   if (!gatewayPromise) {
     gatewayPromise = (async () => {
       const baseWallet = await generateXyoBaseWalletFromPhrase(process.env.SEED_PHRASE!)
-      const signer = await baseWallet.derivePath(DEFAULT_WALLET_PATH)
+      const account = await baseWallet.derivePath('0')
+      const signer = await buildSimpleXyoSignerV2(
+        { config: ConfigZod.parse({}), caches: {}, singletons: {} },
+        account,
+      )
       return new GatewayBuilder()
         .name('sequence')
         .rpcUrl(`${network.url}/rpc`)
@@ -157,6 +169,6 @@ This is an escape hatch — prefer `GatewayBuilder` unless you have a concrete r
 
 - [Gateway](gateway.md) — generic concepts, viewer API, networks, transports, anti-patterns
 - [Datalakes](datalakes.md) — `createRestDataLakeRunner` / `createRestDataLakeViewer` are the same in Node as in the browser
-- [XL1 Identity & Wallets](identity.md) — canonical backend wallet pattern (`generateXyoBaseWalletFromPhrase` + `DEFAULT_WALLET_PATH`) and cross-environment compatibility
+- [XL1 Identity & Wallets](identity.md) — canonical backend wallet pattern (`generateXyoBaseWalletFromPhrase` + `derivePath('<index>')`) and cross-environment compatibility
 - [Identity & Signing (XYO)](../xyo-knowledge/identity.md) — lower-level `Account` / `HDWallet` primitives
 - [Headless dApp Verification](../xl1-patterns/headless-verification.md) — verifying browser dApps end-to-end without a browser
