@@ -170,7 +170,7 @@ If addresses do not line up, the script bypassed the canonical helpers — the f
 | Building one runner and pretending it represents both parties | Multi-party flows (commit-reveal, atomic exchange) need distinct signers to be meaningful | Derive each party from a different index; build a runner per signer |
 | Skipping the read-back step after submission | Confirms the chain accepted the tx, not that the data is queryable as the UI expects | Always round-trip via `connection.viewer` to assert the shape the UI will read |
 | Pointing the script at `mainnet` for routine verification | Real funds, real chain pressure | Default to `sequence` in `.env`; require an explicit override for mainnet runs |
-| Calling `confirmSubmittedTransaction(txHash)` with no options on Sequence | Default poll budget can time out before block inclusion | Pass `{ attempts: 30, delay: 10_000 }` (or tune for your network's cadence) |
+| Calling `confirmSubmittedTransaction(txHash)` with no options on Sequence | Defaults are `attempts: 20`, `delay: 1_000` — a 20-second total budget. Sequence finalization regularly takes minutes, so the call rejects before the block lands | Pass `{ attempts: 30, delay: 10_000 }` (the verified-working baseline) or tune for your network's cadence |
 
 ---
 
