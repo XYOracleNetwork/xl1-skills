@@ -38,4 +38,4 @@ Read when connecting to the XL1 chain — generic gateway concepts, viewer API, 
 Read when constructing a gateway in a React dApp — the Chrome wallet extension, `WalletGatewayProvider` / `GatewayProvider` / `InPageGatewaysProvider`, and `useProvidedGateway`. UX patterns built on top of the gateway live in [Browser UX](../xl1-patterns/browser-ux.md).
 
 ### [Node Gateway](gateway-node.md)
-Read when constructing a gateway server-side — `basicRemoteViewerLocator`, the read-only construction recipe, caching pattern, and the (currently undocumented) write path.
+Read when constructing a gateway in any non-browser context — backend services, indexers, CLIs, scheduled jobs, tests, and headless verification of dApps. Covers the canonical `GatewayBuilder` entry point (read-only and write-capable), the seed-phrase signer pattern, the lazy-promise caching pattern, and the `basicRemoteViewerLocator` escape hatch.
