@@ -5,7 +5,7 @@ The env-agnostic gateway file — what the gateway is, the JSON-RPC surface, net
 Environment-specific construction lives in sibling files:
 
 - [Browser Gateway](gateway-browser.md) — React providers, the wallet extension, `useProvidedGateway`
-- [Node Gateway](gateway-node.md) — server-side construction via `basicRemoteViewerLocator`
+- [Node Gateway](gateway-node.md) — server-side construction via `GatewayBuilder` (`.build()` for read-only, `.build(signer)` for write-capable)
 
 **Key npm packages:**
 - `@xyo-network/xl1-providers` — Browser, Node, and Neutral provider implementations
@@ -30,7 +30,7 @@ The gateway is a JSON-RPC 2.0 API server that exposes XL1 chain data and operati
 
 ## Networks
 
-XL1 has three networks. The gateway name (`'mainnet'`, `'sequence'`, `'local'`) is the network identifier — pass it to the React providers in browser dApps (see [Browser Gateway](gateway-browser.md)) or directly to the locator in Node services (see [Node Gateway](gateway-node.md)). The SDK's `DefaultNetworks` maps these to the correct URLs automatically.
+XL1 has three networks. The gateway name (`'mainnet'`, `'sequence'`, `'local'`) is the network identifier — pass it to the React providers in browser dApps (see [Browser Gateway](gateway-browser.md)) or to `GatewayBuilder().name(id).rpcUrl(...)` in Node services (see [Node Gateway](gateway-node.md)). The SDK's `DefaultNetworks` maps these to the correct URLs automatically.
 
 | Network | Gateway Name | Gateway RPC | Datalake | Explorer |
 |---------|-------------|-------------|----------|----------|
@@ -292,7 +292,7 @@ Most consumers never instantiate transports directly. In the browser, the React 
 - **Node provider** — for backend services, uses HTTP transport. See [Node Gateway](gateway-node.md).
 - **Neutral provider** — platform-agnostic primitives shared by both.
 
-The construction helpers (`GatewayBuilder` and `basicRemoteViewerLocator` for Node, `buildProviderLocator`, the React provider components for browser) live with their respective environment-specific files.
+The construction helpers (`GatewayBuilder` for Node, with `basicRemoteViewerLocator` as an advanced escape hatch; `WalletGatewayProvider` / `GatewayProvider` / `InPageGatewaysProvider` for browser) live with their respective environment-specific files.
 
 ---
 
