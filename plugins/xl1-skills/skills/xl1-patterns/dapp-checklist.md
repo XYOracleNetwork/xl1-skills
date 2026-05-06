@@ -64,6 +64,19 @@ Use this checklist before shipping any XL1 dApp feature. Each item corresponds t
 
 ---
 
+## Indexer Floor Block
+
+- [ ] `INDEXER_FLOOR_BLOCK` is set in `.env` for every chain the dApp targets — captured during development, not at deploy time
+- [ ] Bounded dApps (any with self-authored `network.xyo.<myapp>.*` schemas) use a captured chain head as the floor
+- [ ] Unbounded indexers (transfer ledgers, substrate indexers, XRC-20 ledgers) explicitly set `INDEXER_FLOOR_BLOCK=0` — never silently default
+- [ ] Browser dApps that read chain data directly also expose the floor as `VITE_INDEXER_FLOOR_BLOCK`, with backward walks bounded at it
+- [ ] The indexer fails closed when `INDEXER_FLOOR_BLOCK` is missing — no implicit floor of `0`
+- [ ] Each environment (mainnet, sequence, devnet) has its own `.env` with its own captured floor — no reuse across chains
+
+**Source:** [Chain Data Indexing — Floor Block](chain-data-indexing-protocol.md#floor-block), [Chain Data Indexing — Service](chain-data-indexing-service.md)
+
+---
+
 ## Provider Architecture
 
 - [ ] App needs read-only access without wallet? Uses `GatewayProvider` + `InPageGatewaysProvider` — not `WalletGatewayProvider`

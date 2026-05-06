@@ -92,13 +92,13 @@ The hook above is wrong-shaped for most browser views. UIs typically want "the l
 
 The right shape: walk **backward** from `currentBlockNumber()`, accumulate matches, stop when you have N. See [Chain Data Indexing — Protocol § Direction of Iteration](chain-data-indexing-protocol.md#direction-of-iteration) for why.
 
-For a bounded dApp (one querying its own self-authored schemas — see [Floor Block](chain-data-indexing-protocol.md#floor-block)), the walk also bounds at `APP_BIRTH_BLOCK`. Without it, a UI for a connected wallet that has zero matching payloads runs an unbounded scan toward genesis — slow, RPC-quota-burning, and at risk of rendering pre-deployment forgeries if any happen to match the schema. The same `APP_BIRTH_BLOCK` the service indexer reads from `.env` is exposed to the browser via Vite as `VITE_APP_BIRTH_BLOCK`.
+For a bounded dApp (one querying its own self-authored schemas — see [Floor Block](chain-data-indexing-protocol.md#floor-block)), the walk also bounds at the floor. Without it, a UI for a connected wallet that has zero matching payloads runs an unbounded scan toward genesis — slow, RPC-quota-burning, and at risk of rendering pre-deployment matches that cannot be this dApp's data. The same `INDEXER_FLOOR_BLOCK` the service indexer reads from `.env` is exposed to the browser via Vite as `VITE_INDEXER_FLOOR_BLOCK`.
 
 ```ts
 import type { XyoGateway, XyoGatewayRunner } from '@xyo-network/xl1-sdk'
 import type { Payload, Schema } from '@xyo-network/sdk-js'
 
-const APP_BIRTH_BLOCK = Number(import.meta.env.VITE_APP_BIRTH_BLOCK ?? 0)
+const FLOOR_BLOCK = Number(import.meta.env.VITE_INDEXER_FLOOR_BLOCK ?? 0)
 
 async function fetchRecent(
   gateway: XyoGateway | XyoGatewayRunner,
@@ -111,7 +111,7 @@ async function fetchRecent(
 
   const head = Number(await viewer.block.currentBlockNumber())
   // Two safety nets: the time-bound (don't scan too far back) and the floor (don't read pre-app blocks).
-  const stopBlock = Math.max(APP_BIRTH_BLOCK, head - maxBlocksToScan)
+  const stopBlock = Math.max(FLOOR_BLOCK, head - maxBlocksToScan)
   const results: Payload[] = []
 
   for (let n = head; n >= stopBlock && results.length < count; n--) {
@@ -128,7 +128,7 @@ async function fetchRecent(
 }
 ```
 
-For an unbounded browser view (e.g., a recent-transfers feed), `VITE_APP_BIRTH_BLOCK` is absent or `0` and the floor falls away — only the time-bound applies.
+For an unbounded browser view (e.g., a recent-transfers feed), `VITE_INDEXER_FLOOR_BLOCK` is set to `0` and the floor safety net falls away — only the time-bound applies. Floor doesn't fully eliminate schema collisions in either case (another dApp could legitimately share a schema name post-floor), so production views also need a discriminator — typically the connected wallet's address or a sentinel-address filter — see [Chain Data Indexing — Protocol § The honor question](chain-data-indexing-protocol.md#the-honor-question).
 
 ### React hook wrapper
 
