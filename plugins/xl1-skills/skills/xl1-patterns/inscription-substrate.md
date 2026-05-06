@@ -208,6 +208,14 @@ The wallet signs the wrapping `TransactionBoundWitness`. The indexer reads `tx.f
 
 The indexer is the off-chain component that derives the ownership ledger. In production, package it as a diviner module ([Module System](../xyo-knowledge/modules.md)). For prototypes, an in-memory worker is enough.
 
+### Indexing posture: unbounded, ordered from genesis
+
+The substrate is the canonical example of an [unbounded](chain-data-indexing-protocol.md#floor-block) indexer. Floor: chain genesis. Inscriptions and transfers are pre-existing schemas relative to any indexer of the substrate, so pre-deployment data is real and load-bearing.
+
+Beyond unbounded, the substrate further requires **ordered replay from genesis**. Canonical authorship — "the first finalized BoundWitness referencing this content hash wins" — is assigned by replay order. Skipping any blocks below the highest inscription, or processing blocks out of order, silently miscredits authorship to a later inscriber. This is why an indexer of the substrate cannot be retrofitted with `APP_BIRTH_BLOCK` to skip cold-start latency: skipping the early blocks isn't a performance choice, it's a correctness violation.
+
+A dApp built *on top of* the substrate (a token deploy, an NFT collection, a recursive content protocol) can still be bounded — its own deploy-and-after schemas have an `APP_BIRTH_BLOCK`. But the substrate replay underneath it must walk from genesis.
+
 ### State shape
 
 The substrate's record is intentionally schema-agnostic. Anything with an artifact-shaped lifecycle — a plain inscription, a token deploy, a collection root — goes in the same map. Schema-specific details live in higher-layer state alongside it.

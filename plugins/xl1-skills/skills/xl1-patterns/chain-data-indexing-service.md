@@ -14,14 +14,15 @@ How to run a chain data indexer as a long-lived service: process model, state pe
 
 ## Why a Service
 
-An indexer's job is to read every finalized block, derive durable application state, and expose it. That requires:
+An indexer's job is to read every finalized block **above its floor**, derive durable application state, and expose it. That requires:
 
-- **Persistence between sessions** — restart-resume from `lastProcessedBlock`, not from genesis
+- **A floor block decision** — bounded (read from `APP_BIRTH_BLOCK` forward) or unbounded (read from genesis). Decided once at scaffold time, not at runtime. See [Chain Data Indexing — Protocol § Floor Block](chain-data-indexing-protocol.md#floor-block) for the framing.
+- **Persistence between sessions** — restart-resume from `lastProcessedBlock`, not from the floor
 - **Public reachability** — clients query the indexer's results, not the chain directly
 - **Reliability** — long-running, supervised, monitored for lag
 - **Signer custody (sometimes)** — if the indexer also signs settlements, attestations, or authority decisions
 
-A browser tab cannot satisfy any of these. Even an in-page indexer for a single user would re-walk the chain from zero on every visit. Services do this work once and serve the result.
+A browser tab cannot satisfy any of these. Even an in-page indexer for a single user would re-walk the chain from its floor on every visit. Services do this work once and serve the result.
 
 ---
 
@@ -29,7 +30,7 @@ A browser tab cannot satisfy any of these. Even an in-page indexer for a single 
 
 A typical XL1 indexer service has three loops:
 
-1. **Sync loop** — poll `viewer.finalization.headNumber()`, walk new finalized blocks, dispatch payloads through application handlers, advance `lastProcessedBlock`.
+1. **Sync loop** — poll `viewer.finalization.headNumber()`, walk new finalized blocks from `lastProcessedBlock + 1`, dispatch payloads through application handlers, advance `lastProcessedBlock`.
 2. **Persist loop** — periodically (or on each block boundary) write the indexer state and `lastProcessedBlock` checkpoint to durable storage.
 3. **Serve loop** — expose state via HTTP / GraphQL / whatever protocol the consumer needs.
 
@@ -38,7 +39,7 @@ The three loops can share a single Node process. They communicate through shared
 ```ts
 async function indexerMain() {
   const gateway = await getServerGateway()
-  const state = await loadStateFromCheckpoint()
+  const state = await loadStateFromCheckpoint()  // seeds from APP_BIRTH_BLOCK on cold start
 
   startHttpApi(state, port)
 
@@ -75,8 +76,26 @@ A simple, robust pattern:
 import { promises as fs } from 'node:fs'
 
 type IndexerState = {
-  lastProcessedBlock: number
+  appBirthBlock: number       // floor — set once, never recomputed
+  lastProcessedBlock: number  // advances every block applied
   // ... application-specific derived state
+}
+
+async function loadStateFromCheckpoint(): Promise<IndexerState> {
+  const persisted = await tryRead(CHECKPOINT_PATH)
+  if (persisted) return persisted
+
+  // Cold start — seed the floor from the dApp's `.env`. Captured at scaffold time;
+  // never computed at runtime. For an unbounded indexer (transfers, substrate),
+  // APP_BIRTH_BLOCK is 0 by convention.
+  const appBirthBlock = Number(process.env.APP_BIRTH_BLOCK)
+  if (!Number.isFinite(appBirthBlock)) {
+    throw new Error('APP_BIRTH_BLOCK is required (capture during scaffolding; see Floor Block)')
+  }
+  return {
+    appBirthBlock,
+    lastProcessedBlock: appBirthBlock - 1,
+  }
 }
 
 async function saveCheckpoint(state: IndexerState) {
@@ -86,7 +105,7 @@ async function saveCheckpoint(state: IndexerState) {
 }
 ```
 
-For larger state, use LMDB or SQLite — same pattern, write-then-rename for atomicity.
+For larger state, use LMDB or SQLite — same pattern, write-then-rename for atomicity. Whatever the storage backend, `appBirthBlock` is part of the persisted record. Deleting the checkpoint must re-seed from `APP_BIRTH_BLOCK` on next start, not silently fall back to genesis.
 
 ---
 
@@ -94,17 +113,19 @@ For larger state, use LMDB or SQLite — same pattern, write-then-rename for ato
 
 On startup:
 
-1. Load `lastProcessedBlock` from checkpoint (default 0 if missing).
+1. Load `appBirthBlock` and `lastProcessedBlock` from checkpoint. If the checkpoint is missing, seed `appBirthBlock` from `process.env.APP_BIRTH_BLOCK` (captured at scaffold time — see [Floor Block](chain-data-indexing-protocol.md#floor-block)) and set `lastProcessedBlock = appBirthBlock - 1`. **Do not silently default to `0`** — for a bounded dApp that turns "cold start" into hours of wasted I/O *and* honors pre-deployment forgeries.
 2. Resume the sync loop from `lastProcessedBlock + 1`.
 3. **Always replay from finalized blocks only.** A reorg can rewrite unfinalized blocks; the indexer must never derive state it would later have to roll back. Use `viewer.finalization.headNumber()` as the upper bound, never `viewer.block.currentBlockNumber()`.
 
-If the checkpoint is corrupted or older than expected, replay from earlier — the determinism property makes this safe. Document the worst-case replay time in operations notes; it scales linearly with chain depth.
+If the checkpoint is corrupted or older than expected, replay from earlier — the determinism property makes this safe. Replay never crosses below `appBirthBlock`. Document the worst-case replay time in operations notes; it scales linearly with `head - appBirthBlock`, not with chain depth.
 
 ### Direction: forward only for steady-state
 
 The sync loop iterates **forward** from `lastProcessedBlock + 1` to head. This is non-negotiable for state derivation — events apply in order. See [Chain Data Indexing — Protocol § Direction of Iteration](chain-data-indexing-protocol.md#direction-of-iteration) for the full reasoning.
 
-**Backfill from head as a pre-warm pattern.** When standing up a new indexer against a chain that already has history, walking forward from genesis is the canonical approach. A valid alternative is to backfill *downward* from a snapshot block toward genesis in the background while a separate forward sync handles new blocks. The two writes converge when the backfill reaches the snapshot point. This is only worth the complexity when the chain has enough history that genesis-forward bootstrap is unacceptable cold-start latency for a new deployment. Steady-state operation is always forward.
+**Backfill from head as a pre-warm pattern.** When standing up a long-history unbounded indexer (the inscription substrate against a deep chain, an XL1 transfer ledger), waiting for a single forward walk from genesis to reach head can be unacceptable. A valid alternative: a forward sync handles new blocks from a recent snapshot point, while a background backfill walks *downward* from that snapshot toward `appBirthBlock`. The two writes converge when the backfill reaches the floor. Steady-state operation is always forward.
+
+This is complementary to floor block, not an alternative. The floor decides *which* blocks are in scope; backfill decides *how* to traverse the in-scope range when its size makes a single forward pass unworkable. A bounded dApp's floor is its `APP_BIRTH_BLOCK` and the in-scope range is usually small enough that backfill isn't worth the complexity.
 
 ---
 
@@ -161,6 +182,7 @@ The indexer is then both a *reader* (deriving state from the chain) and a *write
 | Anti-pattern | Why it fails | Do this instead |
 |---|---|---|
 | Indexing in a browser tab | No persistence, no public reachability, every visitor re-indexes from zero | Run as a service; serve clients from its API |
+| Cold-start defaulting `lastProcessedBlock = 0` for a bounded dApp | Honors pre-deployment forgeries; spends 99.9% of replay time on blocks that provably contain none of the app's data | Seed from `APP_BIRTH_BLOCK` (`.env`, captured at scaffold time); fail closed if missing — see [Floor Block](chain-data-indexing-protocol.md#floor-block) |
 | Replay from `currentBlockNumber()` instead of `finalization.headNumber()` | Reorg-vulnerable derived state — indexer history can silently roll back | Always upper-bound the sync loop on finalized head |
 | Writing checkpoints without atomicity | Crash mid-write corrupts state; resume produces wrong results | Write to `.tmp` then atomic `rename` (or use a DB with native atomicity) |
 | Running multiple instances of the same indexer | Competing checkpoint writes, divergent or corrupted state | Single instance for the indexer; horizontal-scale the read API in front of it |
@@ -173,6 +195,7 @@ The indexer is then both a *reader* (deriving state from the chain) and a *write
 ## Cross-References
 
 - [Chain Data Indexing — Protocol](chain-data-indexing-protocol.md) — conceptual rules (scan strategies, schema design, anchoring choices)
+- [Chain Data Indexing — Protocol § Floor Block](chain-data-indexing-protocol.md#floor-block) — bounded vs. unbounded postures and the agentic capture step
 - [Chain Data Indexing — Client](chain-data-indexing-client.md) — browser-side consumption of indexer output
 - [Inscription Substrate — Replay loop](inscription-substrate.md#replay-loop) — worked example of a global-walk indexer
 - [Node Gateway](../xl1-knowledge/gateway-node.md) — server-side gateway construction (`GatewayBuilder` + `buildSimpleXyoSignerV2`)

@@ -184,12 +184,34 @@ When you add new exports to `shared/`, run `pnpm --filter @<scope>/shared run bu
 After the scaffold reports success:
 
 1. Briefly summarize what was created (template(s), target dir(s), one-line "ready to develop"). For monorepos, mention the workspace root + each sub-package and remind the user that `pnpm install` at the root links everything.
-2. **Proactively continue** implementing whatever the user originally described. Do not stop and wait. For monorepos, the natural ordering is:
+2. **Capture the dApp's birth block** — see the next section. This must happen *before* any feature work that publishes a payload.
+3. **Proactively continue** implementing whatever the user originally described. Do not stop and wait. For monorepos, the natural ordering is:
    1. Define shared types/schemas in `packages/shared/src/` based on what the feature needs and export them for consumers.
    2. Implement service routes/jobs in `packages/service/src/` (chain-watching, indexing, deadline handling).
    3. Implement app UI in `packages/app/src/` consuming the service routes via `fetch`.
    Consult [xl1-patterns](../xl1-patterns/SKILL.md) for the canonical recipe (commit-reveal, indexing, etc.).
-3. Only pause if you need a clarifying decision that can't be inferred from the original request (e.g. "should players be able to rematch without re-committing stakes?").
+4. Only pause if you need a clarifying decision that can't be inferred from the original request (e.g. "should players be able to rematch without re-committing stakes?").
+
+## Capture the dApp's birth block
+
+If the dApp introduces its own payload schemas (the default — any custom dApp under a fresh `network.xyo.<myapp>.*` namespace), capture the chain head **before publishing any application payload** and record it as the dApp's birth block. The agent does this; the user never sees the step.
+
+The reason: the chain accepts arbitrary bytes for any schema, including before the dApp existed. An indexer that walks from block 0 will (a) waste hours on blocks that provably contain none of the dApp's data and (b) honor any pre-deployment forgeries it encounters. Capturing the birth block makes correctness and performance the default. See [Chain Data Indexing — Floor Block](../xl1-patterns/chain-data-indexing-protocol.md#floor-block) for the full framing.
+
+The procedure:
+
+1. Connect to the target chain using the gateway already wired into the scaffold.
+2. Read the current finalized head: `Number(await viewer.finalization.headNumber())`.
+3. Write to the dApp's `.env` (root for single-template scaffolds; the relevant sub-package's `.env` for monorepos):
+   ```
+   APP_BIRTH_BLOCK=<n>
+   VITE_APP_BIRTH_BLOCK=<n>   # only if there's a Vite-built browser package
+   ```
+4. Reference `APP_BIRTH_BLOCK` from the indexer (`process.env`) and from the browser dApp (`import.meta.env.VITE_APP_BIRTH_BLOCK`) so all readers share the same floor.
+
+Skip this step only when the dApp is **unbounded** — its purpose is to index pre-existing schemas (an XL1 transfer indexer, an inscription-substrate indexer, an XRC-20 ledger for an existing token). That's a deliberate choice, not the default; if you skip the capture step, say so in the hand-off summary so the choice is auditable.
+
+Mixed dApps (some bounded schemas, some unbounded) still capture `APP_BIRTH_BLOCK`; per-schema floors live in the indexer code per [Chain Data Indexing — Mixed indexers](../xl1-patterns/chain-data-indexing-protocol.md#mixed-indexers--the-escape-hatch).
 
 ## Flags reference
 

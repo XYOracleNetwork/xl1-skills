@@ -362,6 +362,94 @@ function buildGameState(payloads: Payload[]): GameState {
 
 ---
 
+## Floor Block
+
+Before any indexing code is written, answer one question: **does your dApp care about data that existed before the dApp itself did?**
+
+The chain accepts arbitrary bytes for any schema, including before your application existed. Whether to *honor* pre-deployment matches isn't a chain decision — it's yours.
+
+**Heuristic.** If your dApp invented the schema, data older than your dApp didn't matter. Pre-deployment matches were either invalid, accidental, or adversarial. Ignore them.
+
+### Two postures — pick one for the dApp
+
+**Bounded by birth.** The dApp's data lives under schemas the dApp itself introduced. Floor: `APP_BIRTH_BLOCK` — the chain head captured at the moment the dApp was created.
+
+- Custom dApps with their own `network.xyo.<myapp>.*` namespace
+- Games (an RPS dApp's `network.xyo.rps.*` schemas)
+- Any application that designed its own payload protocol from scratch
+
+This is the default for new dApps. Reading from `APP_BIRTH_BLOCK` forward is both *correct* (no honoring of pre-app data) and *fast* (no scanning of blocks that provably contain none of the dApp's data).
+
+**Unbounded.** The dApp indexes schemas (or chain properties) that predate its own code. Pre-deployment data is real and load-bearing. Floor: chain genesis (or the protocol's documented floor).
+
+- A `network.xyo.transfer` indexer covering all XL1 history
+- A `txHash → blockNumber` lookup service
+- An XRC-20 ledger for an existing token
+- Any indexer of the inscription substrate
+
+Some unbounded indexers further require **ordered replay from genesis** because canonical state assignment depends on first-finalized order. The inscription substrate is the canonical example: skipping early blocks silently miscredits authorship to a later inscriber. See [Inscription Substrate](inscription-substrate.md).
+
+### The agentic capture step
+
+When scaffolding a bounded dApp — the default for any application creating its own schemas — the agent must, **before any application payload reaches the chain**:
+
+1. Query `viewer.finalization.headNumber()` against the target chain.
+2. Record the result into the dApp's `.env` as `APP_BIRTH_BLOCK={n}`.
+3. Wire the indexer (and any backward-walking browser scans) to import `APP_BIRTH_BLOCK` and bound iteration by it.
+
+The developer never touches this. A working dApp on the first iteration is the default; a correct floor is the default; nothing about the indexer reads pre-deployment blocks.
+
+```bash
+# .env (captured during scaffolding, before any payload is published)
+APP_BIRTH_BLOCK=412847
+```
+
+```ts
+// Service indexer (Node)
+const APP_BIRTH_BLOCK = Number(process.env.APP_BIRTH_BLOCK)
+let lastProcessedBlock = APP_BIRTH_BLOCK - 1
+// ...sync loop iterates from lastProcessedBlock + 1 to finalized head
+
+// Browser dApp (Vite)
+const APP_BIRTH_BLOCK = Number(import.meta.env.VITE_APP_BIRTH_BLOCK)
+// ...backward walks bound at APP_BIRTH_BLOCK instead of running unbounded toward genesis
+```
+
+For unbounded dApps, the agent skips the capture step and the indexer iterates from genesis. The choice is made once and recorded in the scaffold output — not autodetected, not per-schema.
+
+**Capture timing is load-bearing.** The chain head must be read *before* the dApp publishes its first payload. Capturing afterwards puts the dApp's own first publish below the floor and the indexer will silently miss it.
+
+### Mixed indexers — the escape hatch
+
+A dApp that genuinely indexes both its own schemas *and* a pre-existing schema (e.g., RPS that also tracks players' XL1 transfer history) needs per-schema floors. This is the escape hatch, not the canonical shape — most dApps fit cleanly into one of the two postures.
+
+```ts
+const FLOORS: Record<string, number> = {
+  'network.xyo.rps.move':   APP_BIRTH_BLOCK,  // self-authored
+  'network.xyo.rps.result': APP_BIRTH_BLOCK,  // self-authored
+  'network.xyo.transfer':   0,                // pre-existing
+}
+
+function shouldHonor(payload: Payload, blockNumber: number): boolean {
+  const floor = FLOORS[payload.schema] ?? APP_BIRTH_BLOCK
+  return blockNumber >= floor
+}
+```
+
+Default-when-absent is `APP_BIRTH_BLOCK`, not `0`. The safe choice is the default — adding a new self-authored schema to the dApp can't accidentally open the indexer up to honoring pre-deployment matches. The scan iterates from `Math.min(...Object.values(FLOORS))` and each handler self-gates by its schema's floor.
+
+### Anti-patterns
+
+| Anti-pattern | Why it fails |
+|---|---|
+| Defaulting cold-start `lastSeenBlock = 0` for a self-authored-schema dApp | Honors pre-deployment matches that are forgeries by construction; wastes hours scanning blocks that provably contain none of the app's data |
+| Treating an unbounded indexer (transfers, substrate) as bounded | Misses real pre-deployment data; for substrate-shaped protocols, silently miscredits canonical first-author |
+| Capturing `APP_BIRTH_BLOCK` *after* publishing the first app payload | The dApp's own first publish is now below the floor; indexer will silently skip it |
+| Per-schema floor map for a single-posture dApp | Over-formalizes a binary choice; obscures the actual decision |
+| Asking the developer to "remember to capture the birth block" | This is an agentic concern. Capture it during scaffolding and write it to `.env` — the developer should never see this step |
+
+---
+
 ## Polling for New Data
 
 XL1 does not provide push-based subscriptions. Poll for new data by tracking the last-seen block number.
@@ -438,6 +526,8 @@ Two regimes:
 **Forward iteration is required for state derivation.** A global indexer that builds derived state ([Strategy 1](#strategy-1-global-block-walk-forward-iteration)) cannot replay events out of order without losing determinism. This is non-negotiable for ledger correctness.
 
 **Backward iteration is the right shape for recency-biased UIs.** A user staring at "show my last 10 moves" doesn't care about block 1 — they care about what just happened. Walk backward, accumulate matches, stop when you have N. The browser-side ephemeral case is overwhelmingly this shape.
+
+**Cold-start backward** (`head → first app-schema occurrence`) is a specialized variant: retroactively discovering an indexer's floor for a third-party protocol with no documented birth block. Walk backward from `finalization.headNumber()`, stop on the first block containing the target schema, cache the result. Bounded by the depth at which the protocol first appeared. New dApps capture their birth block at scaffold time and skip this entirely — see [Floor Block](#floor-block).
 
 The four scan strategies below are tagged with their natural direction. Some are bidirectional in principle but most have a clearly correct choice.
 
@@ -564,6 +654,8 @@ Both arrive at the same minter address. The substrate's reference indexer prefer
 
 | Decision | Guidance |
 |----------|----------|
+| Indexing your dApp's own schemas? | **Bounded** — capture `APP_BIRTH_BLOCK` at scaffold time, iterate from there. See [Floor Block](#floor-block) |
+| Indexing pre-existing schemas (transfers, substrate, older protocols)? | **Unbounded** — iterate from genesis. Substrate-shaped protocols additionally require ordered replay |
 | Transaction context needed? | Use `connection.viewer.transaction.*` — gives you signer addresses, block number, fees |
 | Just need payloads by type? | Walk blocks via `viewer.block.blockByNumber()` from `lastSeen + 1 → finalization.headNumber()` and filter by `payload.schema`. `ViewerWithDataLake` hydrates off-chain payloads transparently |
 | Need a specific payload? | Use `connection.viewer.block.payloadsByHash(hashes)` (or `RestDataLakeViewer.get(hashes)` for hashes obtained outside the gateway path) |
