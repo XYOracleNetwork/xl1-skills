@@ -89,6 +89,20 @@ Walk this checklist before declaring any XL1 dApp work complete. This is an **ag
 
 ---
 
+## Browser ↔ Service Wiring (if there's both an app and a service)
+
+- [ ] Service routes mount under `/api/*` — never at the root or under app-specific paths
+- [ ] React app calls the service with relative URLs (`fetch('/api/...')`) — no `VITE_API_URL`, no hardcoded `http://localhost:3001`, no `window.location.origin` concatenation
+- [ ] App's `vite.config.ts` has a `server.proxy` rule for `/api` → `http://localhost:3001` with `changeOrigin: true`
+- [ ] Service `PORT` defaults to `3001`; app's Vite `server.port` is `3000`
+- [ ] No CORS middleware on the service — the default same-origin topology has nothing to CORS for. Adding `cors()` "just in case" is the anti-pattern
+- [ ] Workspace root has a `dev` script that runs app + service concurrently (`pnpm -r --parallel run dev`)
+- [ ] If the dApp deliberately runs cross-origin (escape hatch), the choice is documented, the CORS allowlist is explicit (not `*` for credentialed routes), and the preflight path was tested
+
+**Source:** [Browser ↔ Service Wiring](browser-service-wiring.md)
+
+---
+
 ## Headless Verification
 
 - [ ] A Node verification script exercises the dApp's happy path end-to-end — `GatewayBuilder.build(signer)` against a seed phrase from `.env`, no browser involved

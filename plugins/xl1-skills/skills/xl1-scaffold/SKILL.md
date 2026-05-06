@@ -104,6 +104,8 @@ For a monorepo, scaffold sub-packages under `packages/`:
     └── shared/      ← xl1-shared template (types/schemas used by app + service)
 ```
 
+The monorepo templates wire app ↔ service the same way every time: app on `:3000`, service on `:3001`, all service routes under `/api/*`, Vite dev-proxies `/api/*` to the service so the browser stays same-origin, and the workspace root's `pnpm dev` runs both concurrently. **Do not add CORS middleware** to the service — there is nothing to CORS for in this topology, and adding it "just in case" is the anti-pattern that the prescription exists to prevent. The full pattern (including the prod reverse-proxy story and the cross-origin escape hatch) is documented in [Browser ↔ Service Wiring](../xl1-patterns/browser-service-wiring.md). When implementing the dApp, fetch with relative paths (`fetch('/api/foo')`) — no `VITE_API_URL`, no hardcoded host.
+
 ### Run the scaffold
 
 For a **single template**:
