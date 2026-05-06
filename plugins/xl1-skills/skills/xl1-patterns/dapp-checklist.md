@@ -88,6 +88,22 @@ Use this checklist before shipping any XL1 dApp feature. Each item corresponds t
 
 ---
 
+## Headless Verification
+
+- [ ] A Node verification script exercises the dApp's happy path end-to-end — `GatewayBuilder.build(signer)` against a seed phrase from `.env`, no browser involved
+- [ ] The script imports the dApp's own domain functions (e.g., `submitMove`, `revealMove`) — does not re-implement payload construction or transaction logic
+- [ ] Domain functions accept a runner/gateway as a parameter so the same code runs in both browser and Node contexts
+- [ ] The signer is derived via `generateXyoBaseWalletFromPhrase` + `derivePath('<index>')` + `buildSimpleXyoSignerV2` — addresses match what MetaMask / XYO extension show on the same seed
+- [ ] Multi-party flows derive distinct signers (`derivePath('0')`, `derivePath('1')`, …) and build one runner per signer
+- [ ] The script reads back through `connection.viewer` after submission — confirming the data shape the UI will render, not just that the tx was accepted
+- [ ] `confirmSubmittedTransaction` calls pass explicit options for non-local networks (e.g., `{ attempts: 30, delay: 10_000 }` for Sequence) — defaults time out before finalization
+- [ ] Seed phrase loads from `.env` via `dotenv/config`; never logged, committed, or echoed to console
+- [ ] Script defaults to a non-mainnet network (e.g., `XL1_NETWORK=sequence`) — explicit override required to point at mainnet
+
+**Source:** [Headless dApp Verification](headless-verification.md)
+
+---
+
 ## Display
 
 - [ ] Hashes (64 chars) and addresses (40 chars) are clamped to a readable prefix + suffix (e.g., `a1b2c3d4...ef567890`)
