@@ -25,6 +25,16 @@ Do **not** activate when:
 
 If ambiguous, ask one question: *"Are you starting a new project, or adding to an existing one?"*
 
+## Interpreting the prompt
+
+Before invoking the scaffold, scan the prompt and the working directory for conventions that change how you build and verify the dApp. These cues are easy to miss because they look like incidental context, but each one prescribes specific behavior.
+
+- **`.env` file with a seed phrase already in the empty repo.** The user expects the dApp to be **headless-verifiable end-to-end** by an agent or CI, using the same identity a browser user would have on that seed. Build the dApp normally — browser wallet wiring intact, React providers, the works — but also write a Node verification script that exercises the happy path through `GatewayBuilder.build(signer)` and run it before reporting completion. The seed phrase is for verification only; it does not change the UX surface of the dApp. **Read [Headless dApp Verification](../xl1-patterns/headless-verification.md) before planning** — it documents the prompt shape, signer derivation, and anti-patterns. The DoD's Headless Verification section becomes mandatory in this case.
+- **Prompt names which accounts hold funds** (e.g. "accounts 0 and 1"). Tells you how many signers to derive and how to assign roles in multi-party flows.
+- **Prompt names a network** (mainnet / sequence / local). Determines the `DefaultNetworks` entry the scaffold's gateway points at and which `INDEXER_FLOOR_BLOCK` is captured.
+
+Treat any of these cues as load-bearing. Surface them in your acknowledgement before scaffolding so the user can correct any misread.
+
 ## Invocation
 
 The scaffold runtime ships with this plugin under `scripts/scaffold/` (synced from `packages/xl1-scaffold/` at build time). Invoke it directly with Node — `${CLAUDE_SKILL_DIR}` resolves to this skill's directory at runtime.
@@ -191,6 +201,7 @@ After the scaffold reports success:
    3. Implement app UI in `packages/app/src/` consuming the service routes via `fetch`.
    Consult [xl1-patterns](../xl1-patterns/SKILL.md) for the canonical recipe (commit-reveal, indexing, etc.).
 4. Only pause if you need a clarifying decision that can't be inferred from the original request (e.g. "should players be able to rematch without re-committing stakes?").
+5. **Before reporting the work complete, walk the [dApp Definition of Done](../xl1-patterns/dapp-checklist.md)**. This is mandatory, not optional — the checklist enumerates exactly the rules and anti-patterns the rest of the skill stack documents, and an unwalked DoD is the most common cause of shipped dApps that violate them. In your completion summary, call out each relevant section with explicit pass/fail and a one-line note on why. Sections marked "(if applicable)" can be skipped only when truly out of scope (e.g. no commit-reveal in a read-only dashboard); state that they were skipped and why. If the prompt included a seed-phrase `.env` (see "Interpreting the prompt"), the **Headless Verification** section is mandatory — you must have run the verification script and report its outcome, not just check the boxes.
 
 ## Capture the indexer floor block
 
