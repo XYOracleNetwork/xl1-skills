@@ -1,6 +1,6 @@
 # dApp Definition of Done
 
-Use this checklist before shipping any XL1 dApp feature. Each item corresponds to a rule or anti-pattern documented in the skill stack. The general [Definition of Done](../development/workflow.md) (builds, lints, tests, dev server, no placeholders, no regressions) still applies — this checklist adds XL1-specific concerns.
+Walk this checklist before declaring any XL1 dApp work complete. This is an **agent-facing completion gate**, not a deployment or release step — "done" here means the agent stops and reports the work as finished, regardless of whether anyone is about to deploy it. Each item corresponds to a rule or anti-pattern documented in the skill stack. The general [Definition of Done](../development/workflow.md) (builds, lints, tests, dev server, no placeholders, no regressions) still applies — this checklist adds XL1-specific concerns on top of it.
 
 ---
 
