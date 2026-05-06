@@ -47,6 +47,7 @@ Use this checklist before shipping any XL1 dApp feature. Each item corresponds t
 - [ ] BoundWitnesses are built with `BoundWitnessBuilder` — field arrays are never constructed manually
 - [ ] Datalake access uses `RestDataLakeRunner` / `RestDataLakeViewer` — not raw `fetch()` to the endpoint
 - [ ] New types follow the Zod-first pattern: Zod schema is source of truth, TS type derived via `z.infer`, guards via `zodIsFactory` / `zodAsFactory` / `zodToFactory`
+- [ ] Payloads read from the chain or datalake are filtered through Zod-factory guards (`isXxxPayload`) before being honored — `payload.schema === '...'` is a tag check, not a validator. `isPayloadOfSchemaType` is not a substitute
 - [ ] Schemas are created with `asSchema('network.xyo.app.entity', true)` — not bare string literals
 
 **Source:** [Protocol Best Practices](../xyo-knowledge/best-practices.md), [Development on XL1](../xl1-knowledge/development.md)

@@ -128,7 +128,7 @@ async function fetchRecent(
 }
 ```
 
-For an unbounded browser view (e.g., a recent-transfers feed), `VITE_INDEXER_FLOOR_BLOCK` is set to `0` and the floor safety net falls away — only the time-bound applies. Floor doesn't fully eliminate schema collisions in either case (another dApp could legitimately share a schema name post-floor), so production views also need a discriminator — typically the connected wallet's address or a sentinel-address filter — see [Chain Data Indexing — Protocol § The honor question](chain-data-indexing-protocol.md#the-honor-question).
+For an unbounded browser view (e.g., a recent-transfers feed), `VITE_INDEXER_FLOOR_BLOCK` is set to `0` and the floor safety net falls away — only the time-bound applies. The structural filter on accumulated matches is the dApp's Zod-factory guard — `payloads.filter(isMovePayload)` instead of a schema-string check — which validates shape and rejects most collisions on its own. See [Chain Data Indexing — Protocol § The honor question](chain-data-indexing-protocol.md#the-honor-question) for when authorship discriminators (signer scoping, sentinel filtering) layer on top.
 
 ### React hook wrapper
 

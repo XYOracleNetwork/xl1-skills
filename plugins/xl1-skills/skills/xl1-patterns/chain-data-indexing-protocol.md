@@ -338,13 +338,12 @@ const payloads = await gateway.connection.viewer?.block.payloadsByHash(hashes)
 
 ## Step 4: Build an Application Read Model
 
-Transform raw chain payloads into your application's domain model. Use schema-based type guards to filter and narrow:
+Transform raw chain payloads into your application's domain model. Filter and narrow with the **Zod-factory guards from Step 1** — `isMovePayload`, `isResultPayload`, etc. — never `isPayloadOfSchemaType`. The Zod factories validate schema name *and* payload shape in one step; `isPayloadOfSchemaType` checks only the schema string and would let a malformed payload (right schema name, wrong fields) slip through.
 
 ```ts
-import { isPayloadOfSchemaType } from '@xyo-network/sdk-js'
-
-const isMovePayload = isPayloadOfSchemaType<MovePayload>('network.xyo.rps.move')
-const isResultPayload = isPayloadOfSchemaType<ResultPayload>('network.xyo.rps.result')
+// `isMovePayload` and `isResultPayload` are exported from Step 1 — Zod-factory
+// guards derived from MovePayloadZod and ResultPayloadZod. Use them anywhere
+// you read payloads from the chain or datalake. Never trust the schema field alone.
 
 function buildGameState(payloads: Payload[]): GameState {
   const moves = payloads.filter(isMovePayload)
@@ -377,7 +376,11 @@ The chain accepts arbitrary bytes for any schema, including before your applicat
 
 **Heuristic.** If your dApp invented the schema, data older than your dApp can't be your dApp's data. Whatever those bytes are — random collisions, independent dApps that picked the same schema name, accidental writes — they're not part of your application's state. Ignore them.
 
-**Floor doesn't fully solve schema collisions.** Two dApps can independently pick `network.xyo.rps.move` without coordination, and the chain accepts both. The floor narrows the collision window — pre-floor matches are *definitely* not yours — but post-floor matches still need discrimination. Discriminators include per-dApp signer scoping, sentinel addresses (see [Destination as Protocol](#destination-as-protocol--a-native-xl1-pattern)), and per-app ID prefixes. The floor reduces the surface; it doesn't close it.
+**The schema name is a tag, not a validator.** The `schema` field is a string the chain doesn't interpret. Older versions of your dApp can publish payloads that no longer match the current shape; malformed bytes can carry the right schema with the wrong fields; another party can independently use the same schema string. The structural discriminator is your dApp's Zod-factory guard — `isMovePayload` derived from `MovePayloadZod` validates name *and* shape in one step, and a well-defined Zod schema is usually sufficient on its own.
+
+**Beyond shape: referential integrity.** Some checks Zod can't see — *"this payload references hash H — does H actually exist on chain?"*, *"this transfer claims a previous owner — does the ownership ledger agree?"* — belong in a sanity-check pass after Zod. Treat referential integrity as part of the read pipeline, not as ad-hoc assertions sprinkled into business logic.
+
+**Authorship discriminators (last resort).** When a legitimate same-schema *and* same-shape collision is plausible — two real dApps that picked identical schemas, or a malicious party crafting payloads that pass your Zod — additional discriminators apply: per-dApp signer scoping, sentinel addresses (see [Destination as Protocol](#destination-as-protocol--a-native-xl1-pattern)), or per-app ID prefixes. Reach for these only when Zod can't tell the data apart on its own.
 
 ### Two postures — pick one for the dApp
 
