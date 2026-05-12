@@ -1,0 +1,25 @@
+# Validate skill frontmatter on every PR that touches the skills tree.
+# Catches malformed SKILL.md before merge so sync-skills.yml doesn't fail
+# after the change has already landed in `develop`.
+
+name: Validate skills
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/xl1-skills/skills/**'
+      - 'scripts/validate-skills.mjs'
+      - '.github/workflows/validate-skills.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate SKILL.md frontmatter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: node scripts/validate-skills.mjs plugins/xl1-skills/skills
