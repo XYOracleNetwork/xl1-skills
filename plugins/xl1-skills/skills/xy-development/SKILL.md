@@ -1,5 +1,5 @@
 ---
-name: development
+name: xy-development
 description: Core development standards for TypeScript, Git workflow, testing principles, and development workflow. Activates when writing code, running builds, performing git operations, or completing features.
 ---
 

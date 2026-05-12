@@ -12,7 +12,7 @@ Five skill layers that cascade top-down:
 | 4 | `xl1-knowledge` | XL1 chain, datalakes, gateway (generic, browser, and Node) |
 | 3 | `xyo-knowledge` | XYO payloads, bound witnesses, modules, identity |
 | 2 | `xy-toolchain` | @xylabs/toolchain, ESLint flat config, TypeScript config, Vitest |
-| 1 | `development` | TypeScript, Git workflow, testing, dev conventions |
+| 1 | `xy-development` | TypeScript, Git workflow, testing, dev conventions |
 
 Skills use progressive loading — each `SKILL.md` is a lightweight router that directs Claude to read sub-files on demand based on task context.
 
@@ -52,7 +52,7 @@ Verify skills are registered:
 /help
 ```
 
-Skills appear as `/xl1-skills:<skill-name>` (e.g., `/xl1-skills:development`, `/xl1-skills:xl1-patterns`).
+Skills appear as `/xl1-skills:<skill-name>` (e.g., `/xl1-skills:xy-development`, `/xl1-skills:xl1-patterns`).
 
 ## Usage
 
@@ -60,7 +60,7 @@ Once installed, Claude automatically activates the relevant skills based on your
 
 - Ask Claude to build a dApp on XL1 and it will use `xl1-patterns` + `xl1-knowledge`
 - Ask about XYO payloads or bound witnesses and it will use `xyo-knowledge`
-- Start a new project and it will apply `xy-toolchain` + `development` conventions
+- Start a new project and it will apply `xy-toolchain` + `xy-development` conventions
 
 ## Key Conventions
 
