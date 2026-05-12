@@ -1,6 +1,6 @@
 # Skills sync setup: xl1-skills → xyo-skills
 
-This repo auto-publishes its skills to the public mirror [`XYOracleNetwork/xyo-skills`](https://github.com/XYOracleNetwork/xyo-skills) so they're installable via the `skills.sh` CLI (`npx skills add XYOracleNetwork/xyo-skills`). The sync is driven by three workflows:
+This repo auto-publishes its skills to [`XYOracleNetwork/xyo-skills`](https://github.com/XYOracleNetwork/xyo-skills) so they're installable via the `skills.sh` CLI (`npx skills add XYOracleNetwork/xyo-skills`). The sync is driven by three workflows:
 
 | Workflow | Trigger | Purpose |
 | --- | --- | --- |
@@ -9,6 +9,10 @@ This repo auto-publishes its skills to the public mirror [`XYOracleNetwork/xyo-s
 | `.github/workflows/pat-health.yml` | Monthly cron + manual dispatch | Detect expired/revoked sync PAT and open a tracking issue |
 
 The sync uses plain `git` + `rsync` — no third-party action holds the write-credentialed PAT.
+
+### Multi-source safe
+
+The sync is designed so multiple source repos can publish into the same target. Each source claims its skills via a manifest at `xyo-skills/.sync-manifests/<source-name>.json`. Per-skill `rsync` ensures one source can't clobber another. A collision check fails the workflow if this source tries to publish a skill name another source already owns. See [Onboarding a second source repo](#onboarding-a-second-source-repo) below.
 
 ## One-time setup
 
@@ -35,46 +39,17 @@ In **this** repo (`xl1-skills`):
 
 ### 3. Seed the target repo
 
-The target repo (`XYOracleNetwork/xyo-skills`) already exists. The sync workflow only writes inside `skills/`, so `README.md` and `LICENSE` at the target root need a one-time manual seed.
+The target repo (`XYOracleNetwork/xyo-skills`) already exists. The sync workflow only writes inside `skills/` and `.sync-manifests/`, so `README.md` and `LICENSE` at the target root need a one-time manual seed.
 
-**`README.md`** — paste this verbatim at the target repo root via the GitHub web UI:
-
-````markdown
-# xyo-skills
-
-Auto-synced mirror of agent skills from [xl1-skills](https://github.com/XYOracleNetwork/xl1-skills), packaged for installation via the [skills.sh](https://skills.sh) CLI.
-
-## Install
-
-All skills:
-
-```sh
-npx skills add XYOracleNetwork/xyo-skills
-```
-
-A single skill:
-
-```sh
-npx skills add XYOracleNetwork/xyo-skills --skill xl1-scaffold
-```
-
-Available skills: `xl1-scaffold`, `xl1-patterns`, `xl1-knowledge`, `xyo-knowledge`, `xy-toolchain`, `xy-development`.
-
-## Don't open PRs here
-
-This repo is auto-generated from [xl1-skills](https://github.com/XYOracleNetwork/xl1-skills) by a GitHub Action. PRs against `xyo-skills` will be closed — open them against the source repo instead.
-
-## License
-
-LGPL v3 (inherited from the source repo).
-````
-
-**`LICENSE`** — copy `LICENSE.txt` from this repo into `xyo-skills` as `LICENSE`. The shell command from inside `xyo-skills` working copy:
+- **`README.md`** — content is the public face of the repo and is unrelated to sync mechanics. Whatever describes the available skills and how to install them via `skills.sh` is appropriate.
+- **`LICENSE`** — should match the source repo (LGPL v3). The simplest path from a local working copy of both repos:
 
 ```sh
 cp ../xl1-skills/LICENSE.txt LICENSE
-git add LICENSE && git commit -m "chore: add LGPL v3 license (matches xl1-skills source)"
+git add LICENSE && git commit -m "chore: add LGPL v3 license"
 ```
+
+The sync workflow never touches `README.md` or `LICENSE` at the target root, so these files are stable and safe to edit independently of the source repo.
 
 ## End-to-end first-run test
 
@@ -92,9 +67,10 @@ Run these in order before relying on the auto-sync. Each step confirms a specifi
 
 4. **Dry-run the sync.** From this repo's Actions tab → `Sync skills to xyo-skills` → "Run workflow", check `dry_run: true`, run against branch `main`. Expect logs ending in `dry_run=true — would push the staged diff above to XYOracleNetwork/xyo-skills, but skipping.` Confirm the diff stat shows all six skills being added (the target's `skills/` is currently empty).
 
-5. **First real sync.** Re-run the same workflow with `dry_run: false`. Verify:
-   - One new commit appears on `XYOracleNetwork/xyo-skills` main, authored by `github-actions[bot]`, message `chore: sync skills from xl1-skills@<sha>`.
-   - The target's `skills/` now contains all six skill directories.
+5. **First real sync.** Re-run the same workflow with `dry_run: false`. Verify on `XYOracleNetwork/xyo-skills`:
+   - One new commit appears on `main`, authored by `github-actions[bot]`, message `chore: sync skills from xl1-skills@<sha>`.
+   - `skills/` now contains all six skill directories.
+   - `.sync-manifests/xl1-skills.json` exists at the repo root with `{"source":"xl1-skills","skills":[...]}` listing all six skills.
    - `README.md` and `LICENSE` at the target root are unchanged.
 
 6. **Confirm CLI discovery.**
@@ -103,11 +79,11 @@ Run these in order before relying on the auto-sync. Each step confirms a specifi
    ```
    The CLI should resolve the repo, find the skill, and install it.
 
-7. **Confirm idempotency.** Re-run the sync workflow (with `dry_run: false`) without changing anything in the source. Expect logs ending in `No changes to sync.` and no new commit on the target.
+7. **Confirm idempotency.** Re-run the sync workflow (with `dry_run: false`) without changing anything in the source. Expect logs ending in `No changes to sync.` and no new commit on the target. (Verified locally — manifest is byte-for-byte stable when the owned set doesn't change.)
 
 8. **Confirm path-filter precision.** Push a commit to `main` that only touches a path outside the filter (e.g. `packages/xl1-scaffold/src/...`). Verify `Sync skills to xyo-skills` does **not** run.
 
-9. **Confirm deletion sync.** Rename a skill locally on a throwaway branch — e.g. `git mv plugins/xl1-skills/skills/xy-toolchain plugins/xl1-skills/skills/xy-toolchain-renamed` (be sure to update the frontmatter `name:` to match the new directory). PR → merge through your normal flow → push to `main`. The next sync should remove `skills/xy-toolchain/` and add `skills/xy-toolchain-renamed/` in a single commit on the target. **Revert the rename** before continuing if this was a throwaway test.
+9. **Confirm deletion sync.** Rename a skill locally on a throwaway branch — e.g. `git mv plugins/xl1-skills/skills/xy-toolchain plugins/xl1-skills/skills/xy-toolchain-renamed` (be sure to update the frontmatter `name:` to match the new directory). PR → merge through your normal flow → push to `main`. The next sync should remove `skills/xy-toolchain/` and add `skills/xy-toolchain-renamed/` in a single commit on the target, with the manifest's `skills` array updated to reflect the rename. **Revert the rename** before continuing if this was a throwaway test.
 
 ## PAT rotation
 
@@ -120,18 +96,70 @@ Fine-grained PATs cap at 1 year. The flow:
 
 ## Curating the mirror
 
-By default all six skill directories under `plugins/xl1-skills/skills/` get mirrored. To exclude one (for example, keep `xy-toolchain` internal while publishing the others), add an `--exclude` flag to the `rsync` line in `.github/workflows/sync-skills.yml`:
+By default every top-level directory under `plugins/xl1-skills/skills/` gets mirrored. To exclude one (e.g., keep `xy-toolchain` internal), filter inside the `for d in "${SOURCE_DIR}"/*/` loop in `scripts/sync-skills.sh`:
 
-```yaml
-rsync -a --delete --safe-links \
-  --exclude='.git' \
-  --exclude='.github' \
-  --exclude='node_modules' \
-  --exclude='xy-toolchain' \
-  "${GITHUB_WORKSPACE}/${SOURCE_DIR}/" skills/
+```bash
+CURRENT=()
+for d in "${SOURCE_DIR}"/*/; do
+  name=$(basename "${d}")
+  case "${name}" in
+    xy-toolchain) continue ;;   # keep internal
+  esac
+  CURRENT+=("${name}")
+done
 ```
 
-`--exclude` patterns are relative to the rsync source, so `xy-toolchain` matches the top-level skill directory regardless of nesting elsewhere.
+When a skill stops being published, the next sync removes it from the target (the script compares against the previous manifest and rm's the dropped entries). To re-include later, drop the `case` arm and re-sync.
+
+## How the multi-source sync works
+
+The script in `scripts/sync-skills.sh` is the canonical reference. Summary of its algorithm:
+
+1. **Enumerate** the source's top-level skill directories into a `CURRENT` set.
+2. **Read** the previous manifest at `<target>/.sync-manifests/<source-name>.json` (may not exist on first sync) into a `PREVIOUS` set.
+3. **Collision-check** against every other manifest in `.sync-manifests/`. Fail if any other source already claims a name in `CURRENT`.
+4. **Remove** target subtrees in `PREVIOUS \ CURRENT` (skills this source previously owned but no longer does).
+5. **Mirror** each name in `CURRENT` via per-skill `rsync -a --delete --safe-links`. The per-skill scope ensures `--delete` only touches that skill's subtree — other sources' skills are untouched.
+6. **Write** the new manifest. The manifest contains only `{source, skills}` (no timestamp, no source SHA) so it's byte-for-byte deterministic — re-syncs without ownership changes produce zero git diff. Audit info (when did this last change? at what source SHA?) is recoverable via `git log -p` on the manifest file.
+
+## Onboarding a second source repo
+
+To publish skills from a different repo into `xyo-skills` alongside this one:
+
+1. **Copy the sync infrastructure** to the new source repo:
+   - `.github/workflows/sync-skills.yml`
+   - `.github/workflows/validate-skills.yml`
+   - `.github/workflows/pat-health.yml`
+   - `scripts/sync-skills.sh`
+   - `scripts/validate-skills.mjs`
+2. **Update `env:` in `sync-skills.yml`**:
+   - `SOURCE_DIR` — wherever that repo stores its skills tree.
+   - `SOURCE_NAME` — unique identifier, lowercase letters/digits/hyphens, must not collide with any existing manifest in `xyo-skills/.sync-manifests/`. Use the source repo's name unless you have a reason not to.
+   - `TARGET_REPO` stays the same.
+3. **Update the `paths:` filter** under `push.paths` to match the new source's skills tree.
+4. **Provision a PAT** for the new source repo (separate from this one). Same fine-grained scope, same secret name (`PUBLIC_REPO_SYNC_TOKEN`). Each source repo holds its own PAT so revoking access to one doesn't break the other.
+5. **Confirm skill-name uniqueness** before the first sync. Check the existing manifests in `xyo-skills`:
+   ```sh
+   gh api repos/XYOracleNetwork/xyo-skills/contents/.sync-manifests --jq '.[].name'
+   ```
+   For each existing manifest, fetch and inspect the `skills` array. If any name conflicts with what the new source wants to publish, rename on the new source side before proceeding (the workflow will refuse to run otherwise).
+6. **Dry-run** the new source's sync workflow (`workflow_dispatch` with `dry_run: true`). Confirm the diff stat shows only that source's skills being added, and no existing skills being modified or deleted.
+7. **Real sync.** Verify `xyo-skills/.sync-manifests/<new-source>.json` appears alongside `xl1-skills.json`, and that all skills from both sources coexist under `skills/`.
+
+### Constraints
+
+- **Skill names must not collide** between sources. The collision check fails the workflow if they do, but it's faster to coordinate before pushing.
+- **Each source repo must use a unique `SOURCE_NAME`**. Two sources using the same name would overwrite each other's manifest and break the ownership tracking.
+- **Concurrent sync runs from different source repos can race the target push.** The within-repo `concurrency: sync-skills` group only serializes within one source. Across sources, the GitHub-side push will reject one of two simultaneous pushes; the rejected run fails and must be re-triggered. In practice, only one source repo merges to its main at a time, so this is rare.
+
+### Removing a source
+
+To stop a source repo from publishing:
+
+1. In `xyo-skills` directly: delete `.sync-manifests/<source-name>.json` and the skill directories listed in that manifest, in a single commit.
+2. In the source repo: disable or remove `sync-skills.yml`.
+
+This is one-way; if you want to re-onboard the same source later, follow the onboarding steps again — the missing manifest means it's treated as a first-time sync.
 
 ## Upgrade path: GitHub App
 

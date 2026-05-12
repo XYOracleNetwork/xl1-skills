@@ -1,14 +1,16 @@
-# Sync `plugins/xl1-skills/skills/` to the public `XYOracleNetwork/xyo-skills` mirror
-# so the skills are installable via `npx skills add XYOracleNetwork/xyo-skills`.
+# Sync `plugins/xl1-skills/skills/` to the public `XYOracleNetwork/xyo-skills`
+# mirror so the skills are installable via `npx skills add
+# XYOracleNetwork/xyo-skills` (skills.sh CLI).
 #
-# Auth: requires repo secret `PUBLIC_REPO_SYNC_TOKEN` — a fine-grained Personal
-# Access Token scoped to ONLY `XYOracleNetwork/xyo-skills` with `Contents: Read
-# and write`. Do not use a classic `repo`-scoped PAT. See docs/sync-setup.md
-# for step-by-step PAT creation and rotation procedure.
+# Multi-source safe: each source repo claims its skills via a manifest at
+# `<target>/.sync-manifests/<source-name>.json`. Per-skill rsync ensures one
+# source can't clobber another, and a collision check fails the workflow if
+# this source tries to publish a name another source already owns.
 #
-# The workflow performs no destructive action if validation fails or if the
-# rsync produces no changes (idempotent). README.md and LICENSE at the target
-# repo root are not touched — only the `skills/` subdirectory is mirrored.
+# Auth: requires repo secret `PUBLIC_REPO_SYNC_TOKEN` — a fine-grained PAT
+# scoped to ONLY `XYOracleNetwork/xyo-skills` with `Contents: Read and
+# write`. See docs/sync-setup.md for provisioning, rotation, and onboarding
+# additional source repos.
 
 name: Sync skills to xyo-skills
 
@@ -18,6 +20,7 @@ on:
     paths:
       - 'plugins/xl1-skills/skills/**'
       - 'scripts/validate-skills.mjs'
+      - 'scripts/sync-skills.sh'
       - '.github/workflows/sync-skills.yml'
   workflow_dispatch:
     inputs:
@@ -36,6 +39,7 @@ concurrency:
 env:
   TARGET_REPO: XYOracleNetwork/xyo-skills
   SOURCE_DIR: plugins/xl1-skills/skills
+  SOURCE_NAME: xl1-skills
 
 jobs:
   sync:
@@ -61,32 +65,30 @@ jobs:
           fi
           git clone --depth 1 "https://x-access-token:${PAT}@github.com/${TARGET_REPO}.git" target-mirror
 
-      - name: Mirror and stage skills directory
+      - name: Run manifest-driven sync
+        env:
+          TARGET_DIR: target-mirror
+          GITHUB_SHA: ${{ github.sha }}
+        run: bash scripts/sync-skills.sh
+
+      - name: Stage and detect changes
         id: diff
         working-directory: target-mirror
         run: |
           set -euo pipefail
-          mkdir -p skills
-          rsync -a --delete --safe-links \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='node_modules' \
-            "${GITHUB_WORKSPACE}/${SOURCE_DIR}/" skills/
-          git add -A skills/
-          if git diff --cached --quiet -- skills/; then
+          git add -A skills/ .sync-manifests/
+          if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No changes to sync."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "Staged diff against target HEAD:"
-            git diff --cached --stat -- skills/
+            git diff --cached --stat
           fi
 
       - name: Dry-run summary
         if: steps.diff.outputs.changed == 'true' && inputs.dry_run == true
-        working-directory: target-mirror
-        run: |
-          echo "::notice::dry_run=true — would push the staged diff above to ${TARGET_REPO}, but skipping."
+        run: echo "::notice::dry_run=true — staged diff above would be pushed to ${TARGET_REPO}, but skipping."
 
       - name: Commit and push
         if: steps.diff.outputs.changed == 'true' && inputs.dry_run != true
