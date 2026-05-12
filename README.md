@@ -13,7 +13,7 @@ Six skill layers that cascade top-down:
 | 4 | `xl1-knowledge` | XL1 chain, datalakes, gateway, browser wallet |
 | 3 | `xyo-knowledge` | XYO payloads, bound witnesses, modules, identity |
 | 2 | `xy-toolchain` | @xylabs/toolchain, ESLint flat config, TypeScript config, Vitest |
-| 1 | `development` | TypeScript, Git workflow, testing, dev conventions |
+| 1 | `xy-development` | TypeScript, Git workflow, testing, dev conventions |
 
 Skills use progressive loading — each `SKILL.md` is a lightweight router that directs Claude to read sub-files on demand based on task context.
 
