@@ -28,7 +28,7 @@ Layer 5: xl1-patterns/     — Prescriptive design patterns (commit-reveal, inde
 Layer 4: xl1-knowledge/    — XL1 chain, datalakes, gateway, wallet, dev patterns
 Layer 3: xyo-knowledge/    — XYO payloads, bound witnesses, modules, identity
 Layer 2: xy-toolchain/     — @xylabs/toolchain, ESLint, TypeScript config, Vitest
-Layer 1: development/      — TypeScript, Git, testing, workflow conventions
+Layer 1: xy-development/   — TypeScript, Git, testing, workflow conventions
 ```
 
 When building application features on XL1, start with Layer 5's SKILL.md — it provides recipe-style patterns that compose primitives from all lower layers. When working on XL1 infrastructure or need reference docs, start with Layer 4.

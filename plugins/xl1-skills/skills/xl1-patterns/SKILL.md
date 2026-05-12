@@ -14,7 +14,7 @@ These patterns compose primitives from the full skill stack:
 - **[XL1 Knowledge](../xl1-knowledge/SKILL.md)** — chain data model, datalakes, gateway (generic, browser, and Node)
 - **[XYO Knowledge](../xyo-knowledge/SKILL.md)** — payloads, bound witnesses, modules, identity
 - **[XY Toolchain](../xy-toolchain/SKILL.md)** — build tooling, ESLint, TypeScript config, Vitest
-- **[Development](../development/SKILL.md)** — coding conventions, Git, testing, workflow
+- **[Development](../xy-development/SKILL.md)** — coding conventions, Git, testing, workflow
 
 ## Table of Contents
 

@@ -7,7 +7,7 @@ description: XY Labs development toolchain (@xylabs packages). Covers @xylabs/to
 
 XY Labs publishes a coordinated set of development packages from the [xylabs/config](https://github.com/xylabs/config) monorepo. This skill covers how to use them.
 
-This builds on the [Development Skill](../development/SKILL.md) which covers universal principles. This skill covers the **specific tools**.
+This builds on the [Development Skill](../xy-development/SKILL.md) which covers universal principles. This skill covers the **specific tools**.
 
 ## Table of Contents
 

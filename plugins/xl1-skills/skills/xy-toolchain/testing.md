@@ -59,7 +59,7 @@ export default defineConfig({
 - Example: `src/game/validateMove.ts` → `src/game/validateMove.spec.ts`
 
 ### Structure
-Follow the testing principles from [Layer 1](../development/testing.md): Arrange/Act/Assert, behavior-focused naming, test the public interface.
+Follow the testing principles from [Layer 1](../xy-development/testing.md): Arrange/Act/Assert, behavior-focused naming, test the public interface.
 
 ```ts
 import { describe, expect, it } from 'vitest'
