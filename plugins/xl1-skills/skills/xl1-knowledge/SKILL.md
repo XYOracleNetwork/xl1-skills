@@ -13,7 +13,7 @@ XL1 builds on the full skill stack. When working on XL1 projects, also consult:
 
 - **[XYO Knowledge](../xyo-knowledge/SKILL.md)** — for protocol primitives (payloads, bound witnesses, modules, accounts, wallets)
 - **[XY Toolchain](../xy-toolchain/SKILL.md)** — for build tooling (@xylabs/toolchain, ESLint, TypeScript config, Vitest)
-- **[Development](../development/SKILL.md)** — for coding conventions (TypeScript, Git, testing, workflow)
+- **[Development](../xy-development/SKILL.md)** — for coding conventions (TypeScript, Git, testing, workflow)
 
 When you need to look up exact type definitions, install the relevant `@xyo-network/xl1-*` package and read the TypeScript declarations at `dist/neutral/index.d.ts`. The [XL1 Protocol Yellow Paper](https://docs.xyo.network) provides the full protocol specification.
 

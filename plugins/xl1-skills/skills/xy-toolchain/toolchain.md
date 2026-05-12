@@ -129,7 +129,7 @@ If you see errors about missing Node.js built-ins, strongly prefer fixing the ro
 - Some XYO/XY packages require npm authentication to install. If `pnpm install` fails with `ERR_PNPM_FETCH_404` or `ERR_PNPM_FETCH_403` for `@xyo-network/*` or `@xylabs/*` packages, the user likely needs to log in to npm.
 - Ask the user to run `npm login` (or `npm login --scope=@xyo-network` for scoped access).
 - After login, retry `pnpm install`.
-- **Never** commit the resulting `.npmrc` file — it contains auth tokens. Ensure `.npmrc` is in `.gitignore` (see [Development Workflow](../development/workflow.md) credential safety section).
+- **Never** commit the resulting `.npmrc` file — it contains auth tokens. Ensure `.npmrc` is in `.gitignore` (see [Development Workflow](../xy-development/workflow.md) credential safety section).
 - If the error persists after login, the package may genuinely not exist or the user may lack access to the organization. Confirm the exact package name and version before escalating.
 
 ### Package manager conflicts

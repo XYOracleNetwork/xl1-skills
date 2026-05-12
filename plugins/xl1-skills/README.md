@@ -52,7 +52,7 @@ Verify skills are registered:
 /help
 ```
 
-Skills appear as `/xl1-skills:<skill-name>` (e.g., `/xl1-skills:development`, `/xl1-skills:xl1-patterns`).
+Skills appear as `/xl1-skills:<skill-name>` (e.g., `/xl1-skills:xy-development`, `/xl1-skills:xl1-patterns`).
 
 ## Usage
 

@@ -121,7 +121,7 @@ Each skill is a directory under `plugins/xl1-skills/skills/` containing a `SKILL
 
 ```
 plugins/xl1-skills/skills/
-├── development/
+├── xy-development/
 │   ├── SKILL.md          ← router (frontmatter + table of contents)
 │   ├── typescript.md
 │   ├── git.md
@@ -147,7 +147,7 @@ The body is a table of contents linking to sub-files with guidance on when to re
 
 After starting Claude Code or running `/reload-plugins`:
 
-- Run `/help` — skills appear as `/xl1-skills:<name>` (e.g., `/xl1-skills:development`)
+- Run `/help` — skills appear as `/xl1-skills:<name>` (e.g., `/xl1-skills:xy-development`)
 - Check the reload output for the skill count: `Reloaded: 1 plugins · 5 skills · ...`
 - Invoke a skill directly: `/xl1-skills:xl1-patterns`
 

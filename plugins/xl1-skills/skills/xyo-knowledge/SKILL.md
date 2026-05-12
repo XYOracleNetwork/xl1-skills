@@ -9,7 +9,7 @@ This skill covers the XYO Protocol 2.0 — the data model, module system, identi
 
 When you need to look up exact type definitions or API details beyond what this skill covers, install the relevant `@xyo-network/*` package and read the TypeScript declarations at `dist/neutral/index.d.ts`.
 
-This builds on the [Development Skill](../development/SKILL.md) for coding principles and the [XY Toolchain Skill](../xy-toolchain/SKILL.md) for build/lint/test tooling.
+This builds on the [Development Skill](../xy-development/SKILL.md) for coding principles and the [XY Toolchain Skill](../xy-toolchain/SKILL.md) for build/lint/test tooling.
 
 ## Table of Contents
 
